@@ -3,9 +3,8 @@ File I/O utility module
 """
 
 import json
-import os
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
 
 def ensure_directory(path: Path) -> None:
@@ -13,26 +12,26 @@ def ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def load_cache(cache_file: Path) -> Dict[str, Any]:
+def load_cache(cache_file: Path) -> dict[str, Any]:
     """Load data from cache file"""
     if not cache_file.exists():
         return {}
 
     try:
-        with open(cache_file, "r", encoding="utf-8") as f:
+        with cache_file.open(encoding="utf-8") as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError):
+    except (OSError, json.JSONDecodeError):
         return {}
 
 
-def save_cache(cache_file: Path, data: Dict[str, Any]) -> None:
+def save_cache(cache_file: Path, data: dict[str, Any]) -> None:
     """Save data to cache file"""
     ensure_directory(cache_file.parent)
 
     try:
-        with open(cache_file, "w", encoding="utf-8") as f:
+        with cache_file.open("w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-    except IOError:
+    except OSError:
         pass  # Ignore cache save failure
 
 
@@ -40,11 +39,11 @@ def get_file_hash(file_path: Path) -> str:
     """Calculate file hash"""
     import hashlib
 
-    hash_md5 = hashlib.md5()
-    with open(file_path, "rb") as f:
+    hash_sha256 = hashlib.sha256()
+    with file_path.open("rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()[:8]
+            hash_sha256.update(chunk)
+    return hash_sha256.hexdigest()[:8]
 
 
 def sanitize_filename(filename: str) -> str:
@@ -52,20 +51,20 @@ def sanitize_filename(filename: str) -> str:
     import re
 
     # Allowable characters: alphabet, numbers, hyphen, underscore, period
-    sanitized = re.sub(r'[^\w\.-]', '_', filename)
+    sanitized = re.sub(r"[^\w\.-]", "_", filename)
 
     # Reduce consecutive underscores to one
-    sanitized = re.sub(r'_+', '_', sanitized)
+    sanitized = re.sub(r"_+", "_", sanitized)
 
     # Remove leading and trailing spaces and underscores
-    sanitized = sanitized.strip('_ ')
+    sanitized = sanitized.strip("_ ")
 
     return sanitized or "unnamed"
 
 
 def get_unique_filename(directory: Path, base_name: str, extension: str = "") -> str:
     """Create unique filename within directory"""
-    if extension and not extension.startswith('.'):
+    if extension and not extension.startswith("."):
         extension = f".{extension}"
 
     counter = 1
@@ -78,12 +77,12 @@ def get_unique_filename(directory: Path, base_name: str, extension: str = "") ->
     return filename
 
 
-def read_text_file(file_path: Path, encoding: str = "utf-8") -> Optional[str]:
+def read_text_file(file_path: Path, encoding: str = "utf-8") -> str | None:
     """Read text file"""
     try:
-        with open(file_path, "r", encoding=encoding) as f:
+        with file_path.open(encoding=encoding) as f:
             return f.read()
-    except (IOError, UnicodeDecodeError):
+    except (OSError, UnicodeDecodeError):
         return None
 
 
@@ -91,10 +90,10 @@ def write_text_file(file_path: Path, content: str, encoding: str = "utf-8") -> b
     """Write text file"""
     try:
         ensure_directory(file_path.parent)
-        with open(file_path, "w", encoding=encoding) as f:
+        with file_path.open("w", encoding=encoding) as f:
             f.write(content)
         return True
-    except IOError:
+    except OSError:
         return False
 
 
@@ -105,11 +104,11 @@ def copy_file(src: Path, dst: Path) -> bool:
         import shutil
         shutil.copy2(src, dst)
         return True
-    except IOError:
+    except OSError:
         return False
 
 
-def get_pdf_title(pdf_path: Path) -> Optional[str]:
+def get_pdf_title(pdf_path: Path) -> str | None:
     """Extract title metadata from PDF file"""
     try:
         import fitz
@@ -124,11 +123,11 @@ def get_pdf_title(pdf_path: Path) -> Optional[str]:
                 text = page.get_text()
 
 
-                lines = text.split('\n')
-                for line in lines[:5]:
-                    line = line.strip()
-                    if len(line) > 10 and not line.isupper():
-                        title = line
+                lines = text.split("\n")
+                for line_text in lines[:5]:
+                    stripped_line = line_text.strip()
+                    if len(stripped_line) > 10 and not stripped_line.isupper():
+                        title = stripped_line
                         break
 
             return title if title else None

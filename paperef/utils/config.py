@@ -4,7 +4,6 @@ Configuration management module
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -53,11 +52,13 @@ class Config:
 
 
         if self.image_mode not in ["placeholder", "vlm"]:
-            raise ValueError(f"Invalid image_mode: {self.image_mode}")
+            msg = f"Invalid image_mode: {self.image_mode}"
+            raise ValueError(msg)
 
 
         if self.bibtex_key_style not in ["google", "standard"]:
-            raise ValueError(f"Invalid bibtex_key_style: {self.bibtex_key_style}")
+            msg = f"Invalid bibtex_key_style: {self.bibtex_key_style}"
+            raise ValueError(msg)
 
     @property
     def cache_file(self) -> Path:
@@ -76,8 +77,8 @@ class Config:
 
         # Remove special characters and convert spaces to underscores
         import re
-        clean_title = re.sub(r'[^\w\s-]', '', title)
-        clean_title = re.sub(r'\s+', '_', clean_title.strip())
+        clean_title = re.sub(r"[^\w\s-]", "", title)
+        clean_title = re.sub(r"\s+", "_", clean_title.strip())
 
         # Apply template
         return self.folder_template.format(title=clean_title[:50])  # 길이 제한

@@ -1,153 +1,218 @@
 
 """
-PaperRef main CLI interface
+PaperRef main CLI interface using Typer
 """
 
-import argparse
-import os
 import sys
 from pathlib import Path
-from typing import List, Optional
 
+import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from ..core.pdf_processor import PDFProcessor
 from ..core.bibtex_generator import BibTeXGenerator
+from ..core.pdf_processor import PDFProcessor
 from ..utils.config import Config
 from ..utils.file_utils import ensure_directory
+from ..utils.logging_config import get_logger, setup_logging
 
 console = Console()
+app = typer.Typer(
+    name="paperef",
+    help="PDF to Markdown converter with automatic BibTeX generation",
+    add_completion=False,
+    rich_markup_mode="rich",
+)
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command line arguments"""
-    parser = argparse.ArgumentParser(
-        description="Paper2MD: PDF to Markdown converter with automatic BibTeX generation",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Basic conversion
-  paperef input.pdf
+@app.callback()
+def callback():
+    """
+    PDF to Markdown converter with automatic BibTeX generation.
 
-  # Advanced options
-  paperef input.pdf --output-dir ./output --image-mode vlm --verbose
+    Examples:
+        # Basic conversion
+        paperef input.pdf
 
-  # Generate BibTeX only
-  paperef input.pdf --bibtex-only
+        # Advanced options
+        paperef input.pdf --output-dir ./output --image-mode vlm --verbose
 
-  # Batch processing
-  paperef *.pdf --batch --output-dir ./papers
-        """
-    )
+        # Generate BibTeX only
+        paperef input.pdf --bibtex-only
 
-    parser.add_argument(
-        "input_files",
-        nargs="+",
-        help="Input PDF file(s) or glob pattern"
-    )
+        # Batch processing
+        paperef *.pdf --batch --output-dir ./papers
+    """
 
-    parser.add_argument(
+
+@app.command()
+def process(
+    input_files: list[Path] = typer.Argument(
+        ...,
+        help="Input PDF file(s) or glob pattern",
+        exists=True,
+    ),
+    output_dir: Path = typer.Option(
+        "./papers",
         "--output-dir",
-        default="./papers",
-        help="Output directory (default: ./papers)"
-    )
-
-    parser.add_argument(
+        "-o",
+        help="Output directory",
+        file_okay=False,
+        dir_okay=True,
+    ),
+    image_mode: str = typer.Option(
+        "placeholder",
         "--image-mode",
-        choices=["placeholder", "vlm"],
-        default="placeholder",
-        help="Image processing mode: 'placeholder' (default, recommended) or 'vlm'"
-    )
-
-    parser.add_argument(
+        help="Image processing mode",
+        callback=lambda x: x if x in ["placeholder", "vlm"] else typer.BadParameter("Must be 'placeholder' or 'vlm'"),
+    ),
+    bibtex_only: bool = typer.Option(
+        False,
         "--bibtex-only",
-        action="store_true",
-        help="Generate BibTeX only (skip MD conversion)"
-    )
-
-    parser.add_argument(
+        help="Generate BibTeX only (skip MD conversion)",
+    ),
+    bibtex_enhanced: bool = typer.Option(
+        False,
         "--bibtex-enhanced",
-        action="store_true",
-        help="Enable DOI enrichment and field optimization"
-    )
-
-    parser.add_argument(
+        help="Enable DOI enrichment and field optimization",
+    ),
+    bibtex_clean: bool = typer.Option(
+        False,
         "--bibtex-clean",
-        action="store_true",
-        help="Clean empty fields and unnecessary items"
-    )
-
-    parser.add_argument(
+        help="Clean empty fields and unnecessary items",
+    ),
+    cache_dir: Path = typer.Option(
+        "./cache",
         "--cache-dir",
-        default="./cache",
-        help="Cache directory path"
-    )
-
-    parser.add_argument(
+        help="Cache directory path",
+        file_okay=False,
+        dir_okay=True,
+    ),
+    batch: bool = typer.Option(
+        False,
         "--batch",
-        action="store_true",
-        help="Batch process multiple files"
-    )
-
-    parser.add_argument(
-        "--create-folders",
-        action="store_true",
-        default=True,
-        help="Create title-based folders automatically"
-    )
-
-    parser.add_argument(
+        help="Batch process multiple files",
+    ),
+    create_folders: bool = typer.Option(
+        True,
+        "--create-folders/--no-create-folders",
+        help="Create title-based folders automatically",
+    ),
+    folder_template: str = typer.Option(
+        "{title}",
         "--folder-template",
-        default="{title}",
-        help="Folder name template (default: {title})"
-    )
-
-    parser.add_argument(
+        help="Folder name template",
+    ),
+    verbose: bool = typer.Option(
+        False,
         "--verbose",
         "-v",
-        action="store_true",
-        help="Verbose output"
-    )
-
-    parser.add_argument(
-        "--no-interactive",
-        action="store_true",
-        help="Non-interactive mode for BibTeX ambiguity resolution"
-    )
-
-    parser.add_argument(
+        help="Verbose output",
+    ),
+    interactive: bool = typer.Option(
+        True,
+        "--interactive/--no-interactive",
+        help="Interactive mode for BibTeX ambiguity resolution",
+    ),
+    skip_pdf: bool = typer.Option(
+        False,
         "--skip-pdf",
-        action="store_true",
-        help="Skip PDF conversion if markdown file already exists"
+        help="Skip PDF conversion if markdown file already exists",
+    ),
+):
+    """
+    Process PDF files to Markdown with BibTeX generation.
+    """
+    # Create configuration
+    config = Config(
+        output_dir=str(output_dir),
+        image_mode=image_mode,
+        bibtex_only=bibtex_only,
+        bibtex_enhanced=bibtex_enhanced,
+        bibtex_clean=bibtex_clean,
+        cache_dir=str(cache_dir),
+        create_folders=create_folders,
+        folder_template=folder_template,
+        verbose=verbose,
+        interactive=interactive,
+        no_interactive=not interactive,
+        skip_pdf=skip_pdf
     )
 
-    return parser.parse_args()
+    # Set up logging
+    log_file = Path(config.cache_dir) / "paperef.log" if config.verbose else None
+    setup_logging(config, log_file)
+    logger = get_logger("cli")
+
+    # Validate and expand input files
+    valid_files = validate_input_files(input_files)
+
+    # Create output and cache directories
+    ensure_directory(config.output_dir)
+    ensure_directory(config.cache_dir)
+
+    console.print(f"[bold blue]PaperRef v{__import__('paperef').__version__}[/bold blue]")
+    console.print(f"Processing {len(valid_files)} PDF file(s)")
+    console.print()
+
+    # Initialize processors
+    processor = PDFProcessor(config)
+    bibtex_gen = BibTeXGenerator(config)
+
+    # Process files
+    success_count = 0
+    total_count = len(valid_files)
+
+    if len(valid_files) == 1:
+        # Process single file
+        if process_single_file(valid_files[0], config, processor, bibtex_gen):
+            success_count = 1
+    else:
+        # Batch processing
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("Processing files...", total=total_count)
+
+            for pdf_path in valid_files:
+                if process_single_file(pdf_path, config, processor, bibtex_gen):
+                    success_count += 1
+                progress.advance(task)
+
+    # Summary of results
+    console.print()
+    console.print(f"[bold green]Completed: {success_count}/{total_count} files processed successfully[/bold green]")
+
+    if success_count < total_count:
+        console.print(f"[yellow]Warning: {total_count - success_count} files failed to process[/yellow]")
+
+    # Exit with appropriate code
+    sys.exit(0 if success_count > 0 else 1)
 
 
-def validate_input_files(input_files: List[str]) -> List[Path]:
-    """Validate input files and convert to Path objects"""
+def validate_input_files(input_files: list[Path]) -> list[Path]:
+    """Validate input files and expand glob patterns"""
     valid_files = []
 
     for file_pattern in input_files:
-        path = Path(file_pattern)
-
-        if path.is_file() and path.suffix.lower() == ".pdf":
-            valid_files.append(path)
-        elif "*" in str(path) or "?" in str(path):
+        if file_pattern.is_file() and file_pattern.suffix.lower() == ".pdf":
+            valid_files.append(file_pattern)
+        elif "*" in str(file_pattern) or "?" in str(file_pattern):
             # Glob pattern processing
             import glob
-            matches = glob.glob(str(path))
+            matches = glob.glob(str(file_pattern))
             for match in matches:
                 match_path = Path(match)
                 if match_path.is_file() and match_path.suffix.lower() == ".pdf":
                     valid_files.append(match_path)
         else:
-            console.print(f"[red]Warning: {path} is not a valid PDF file[/red]")
+            console.print(f"[red]Warning: {file_pattern} is not a valid PDF file[/red]")
 
     if not valid_files:
         console.print("[red]Error: No valid PDF files found[/red]")
-        sys.exit(1)
+        typer.Exit(1)
 
     return valid_files
 
@@ -184,7 +249,7 @@ def process_single_file(
             if config.skip_pdf and md_file.exists():
 
                 console.print(f"[blue]⏭️  Skipping PDF conversion - using existing: {md_file}[/blue]")
-                with open(md_file, "r", encoding="utf-8") as f:
+                with open(md_file, encoding="utf-8") as f:
                     markdown_content = f.read()
             else:
 
@@ -233,83 +298,5 @@ def process_single_file(
         return False
 
 
-def main() -> int:
-    """Main function"""
-    try:
-        args = parse_args()
-
-        # Create configuration
-        config = Config(
-            output_dir=args.output_dir,
-            image_mode=args.image_mode,
-            bibtex_only=args.bibtex_only,
-            bibtex_enhanced=args.bibtex_enhanced,
-            bibtex_clean=args.bibtex_clean,
-            cache_dir=args.cache_dir,
-            create_folders=args.create_folders,
-            folder_template=args.folder_template,
-            verbose=args.verbose,
-            interactive=not args.no_interactive,
-            no_interactive=args.no_interactive,
-            skip_pdf=args.skip_pdf
-        )
-
-        # Create output directory
-        ensure_directory(config.output_dir)
-        ensure_directory(config.cache_dir)
-
-        # Validate input files
-        input_files = validate_input_files(args.input_files)
-
-        console.print(f"[bold blue]Paper2MD v{__import__('paperef').__version__}[/bold blue]")
-        console.print(f"Processing {len(input_files)} PDF file(s)")
-        console.print()
-
-        # Initialize processor
-        processor = PDFProcessor(config)
-        bibtex_gen = BibTeXGenerator(config)
-
-        # Process files
-        success_count = 0
-        total_count = len(input_files)
-
-        if len(input_files) == 1:
-            # Process single file
-            if process_single_file(input_files[0], config, processor, bibtex_gen):
-                success_count = 1
-        else:
-            # Batch processing
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console
-            ) as progress:
-                task = progress.add_task("Processing files...", total=total_count)
-
-                for pdf_path in input_files:
-                    if process_single_file(pdf_path, config, processor, bibtex_gen):
-                        success_count += 1
-                    progress.advance(task)
-
-        # Summary of results
-        console.print()
-        console.print(f"[bold green]Completed: {success_count}/{total_count} files processed successfully[/bold green]")
-
-        if success_count < total_count:
-            console.print(f"[yellow]Warning: {total_count - success_count} files failed to process[/yellow]")
-
-        return 0 if success_count > 0 else 1
-
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Operation cancelled by user[/yellow]")
-        return 130
-    except Exception as e:
-        console.print(f"[red]Fatal error: {e}[/red]")
-        if args.verbose:
-            import traceback
-            console.print(traceback.format_exc())
-        return 1
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    app()

@@ -3,20 +3,19 @@ BibTeX Scraper module
 OpenAlex API first, Google Scholar Selenium as fallback
 """
 
-import os
+import random
 import re
 import sys
 import time
-import random
-import requests
-from typing import Optional, Dict, Any, List
+from typing import Any
 
+import requests
 from selenium import webdriver
-from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class OpenAlexScraper:
@@ -26,11 +25,11 @@ class OpenAlexScraper:
         self.base_url = "https://api.openalex.org"
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Paper2MD/0.1.0 (https://github.com/alansynn/paperef; mailto:alan@alansynn.com)',
-            'Accept': 'application/json'
+            "User-Agent": "Paper2MD/0.1.0 (https://github.com/alansynn/paperef; mailto:alan@alansynn.com)",
+            "Accept": "application/json"
         })
 
-    def search_paper(self, title: str, year: Optional[int] = None, doi: Optional[str] = None) -> Optional[str]:
+    def search_paper(self, title: str, year: int | None = None, doi: str | None = None) -> str | None:
         """
         Search for papers in OpenAlex and extract BibTeX
 
@@ -55,8 +54,7 @@ class OpenAlexScraper:
                         if bibtex:
                             print(f"Successfully retrieved BibTeX from OpenAlex (DOI) for: {title[:30]}...", file=sys.stderr)
                             return bibtex
-                        else:
-                            print(f"Failed to generate BibTeX from DOI search result for: {doi}", file=sys.stderr)
+                        print(f"Failed to generate BibTeX from DOI search result for: {doi}", file=sys.stderr)
                     else:
                         print(f"DOI search returned no results for: {doi}, falling back to title search", file=sys.stderr)
                 except Exception as e:
@@ -64,20 +62,20 @@ class OpenAlexScraper:
 
             # Title-based search (using simple search parameters)
             params = {
-                'search': title,
-                'per_page': 10,
-                'select': 'id,title,authorships,publication_year,biblio,doi,primary_location,type,locations'
+                "search": title,
+                "per_page": 10,
+                "select": "id,title,authorships,publication_year,biblio,doi,primary_location,type,locations"
             }
 
             # Add year filter
             if year:
-                params['filter'] = f'publication_year:{year}'
+                params["filter"] = f"publication_year:{year}"
 
             response = self.session.get(f"{self.base_url}/works", params=params, timeout=10)
             response.raise_for_status()
 
             data = response.json()
-            works = data.get('results', [])
+            works = data.get("results", [])
 
             if not works:
                 print(f"No results found in OpenAlex for: {title}", file=sys.stderr)
@@ -101,11 +99,11 @@ class OpenAlexScraper:
 
         return None
 
-    def _search_by_doi(self, doi: str) -> Optional[Dict[str, Any]]:
+    def _search_by_doi(self, doi: str) -> dict[str, Any] | None:
         """Search directly by DOI in OpenAlex"""
         try:
 
-            doi = doi.replace('https://doi.org/', '').strip()
+            doi = doi.replace("https://doi.org/", "").strip()
             original_doi = doi
 
 
@@ -115,22 +113,22 @@ class OpenAlexScraper:
 
             doi_variants = [
                 doi,
-                doi.replace('/', '%2F'),
-                doi.replace('%2F', '/'),
+                doi.replace("/", "%2F"),
+                doi.replace("%2F", "/"),
             ]
 
             for doi_variant in doi_variants:
                 try:
                     params = {
-                        'filter': f'doi:"{doi_variant}"',
-                        'select': 'id,title,authorships,publication_year,biblio,doi,primary_location,type,locations'
+                        "filter": f'doi:"{doi_variant}"',
+                        "select": "id,title,authorships,publication_year,biblio,doi,primary_location,type,locations"
                     }
 
                     response = self.session.get(f"{self.base_url}/works", params=params, timeout=10)
                     response.raise_for_status()
 
                     data = response.json()
-                    works = data.get('results', [])
+                    works = data.get("results", [])
 
                     if works:
                         print(f"DOI search successful for variant: {doi_variant}", file=sys.stderr)
@@ -147,7 +145,7 @@ class OpenAlexScraper:
             print(f"Error searching by DOI {doi}: {e}", file=sys.stderr)
             return None
 
-    def _find_best_match(self, works: List[Dict[str, Any]], target_title: str, target_year: Optional[int]) -> Optional[Dict[str, Any]]:
+    def _find_best_match(self, works: list[dict[str, Any]], target_title: str, target_year: int | None) -> dict[str, Any] | None:
         """Find the most relevant result"""
         from difflib import SequenceMatcher
 
@@ -157,8 +155,8 @@ class OpenAlexScraper:
         target_title_lower = target_title.lower()
 
         for work in works:
-            work_title = work.get('title', '').lower()
-            work_year = work.get('publication_year')
+            work_title = work.get("title", "").lower()
+            work_year = work.get("publication_year")
 
             # Calculate title similarity
             title_similarity = SequenceMatcher(None, target_title_lower, work_title).ratio()
@@ -175,87 +173,87 @@ class OpenAlexScraper:
 
         return best_work if best_score > 0.6 else None
 
-    def _generate_bibtex_from_work(self, work: Dict[str, Any]) -> Optional[str]:
+    def _generate_bibtex_from_work(self, work: dict[str, Any]) -> str | None:
         """Generate BibTeX from OpenAlex work data"""
         try:
 
-            title = work.get('title', '')
+            title = work.get("title", "")
             if not title:
                 return None
 
 
-            authorships = work.get('authorships', [])
+            authorships = work.get("authorships", [])
             authors = []
             for authorship in authorships:
-                author_data = authorship.get('author', {})
-                display_name = author_data.get('display_name', '')
+                author_data = authorship.get("author", {})
+                display_name = author_data.get("display_name", "")
 
                 if display_name:
 
 
-                    if ',' in display_name:
+                    if "," in display_name:
                         authors.append(display_name)
                     else:
 
                         name_parts = display_name.split()
                         if len(name_parts) >= 2:
                             last_name = name_parts[-1]
-                            first_names = ' '.join(name_parts[:-1])
+                            first_names = " ".join(name_parts[:-1])
                             authors.append(f"{last_name}, {first_names}")
                         else:
                             authors.append(display_name)
                 else:
 
-                    first_name = author_data.get('first_name', '')
-                    last_name = author_data.get('last_name', '')
+                    first_name = author_data.get("first_name", "")
+                    last_name = author_data.get("last_name", "")
                     if last_name and first_name:
                         authors.append(f"{last_name}, {first_name}")
                     elif last_name:
                         authors.append(last_name)
 
             if not authors:
-                authors = ['Unknown']
+                authors = ["Unknown"]
 
 
-            year = work.get('publication_year')
+            year = work.get("publication_year")
 
 
-            doi = work.get('doi', '').replace('https://doi.org/', '') if work.get('doi') else None
+            doi = work.get("doi", "").replace("https://doi.org/", "") if work.get("doi") else None
 
 
-            primary_location = work.get('primary_location', {})
-            venue_name = ''
-            publisher = ''
+            primary_location = work.get("primary_location", {})
+            venue_name = ""
+            publisher = ""
 
             if primary_location:
-                source = primary_location.get('source', {})
+                source = primary_location.get("source", {})
                 if source:
-                    venue_name = source.get('display_name', '')
-                    publisher = source.get('host_organization_name', '') or source.get('host_organization', '')
+                    venue_name = source.get("display_name", "")
+                    publisher = source.get("host_organization_name", "") or source.get("host_organization", "")
 
 
             if not venue_name:
-                locations = work.get('locations', [])
+                locations = work.get("locations", [])
                 if locations:
                     first_location = locations[0]
-                    source = first_location.get('source', {})
+                    source = first_location.get("source", {})
                     if source:
-                        venue_name = source.get('display_name', '')
-                        publisher = source.get('host_organization_name', '') or source.get('host_organization', '')
+                        venue_name = source.get("display_name", "")
+                        publisher = source.get("host_organization_name", "") or source.get("host_organization", "")
 
 
-            biblio = work.get('biblio', {})
-            pages = biblio.get('first_page', '')
-            last_page = biblio.get('last_page', '')
+            biblio = work.get("biblio", {})
+            pages = biblio.get("first_page", "")
+            last_page = biblio.get("last_page", "")
             if pages and last_page:
                 pages = f"{pages}--{last_page}"
 
 
-            volume = biblio.get('volume', '')
-            issue = biblio.get('issue', '')
+            volume = biblio.get("volume", "")
+            issue = biblio.get("issue", "")
 
 
-            work_type = work.get('type', 'article')
+            work_type = work.get("type", "article")
             bibtex_type = self._map_work_type_to_bibtex(work_type)
 
 
@@ -270,9 +268,9 @@ class OpenAlexScraper:
             if doi:
                 bib_lines.append(f"  doi={{{doi}}},")
             if venue_name:
-                if bibtex_type == 'article':
+                if bibtex_type == "article":
                     bib_lines.append(f"  journal={{{venue_name}}},")
-                elif bibtex_type in ['inproceedings', 'conference']:
+                elif bibtex_type in ["inproceedings", "conference"]:
                     bib_lines.append(f"  booktitle={{{venue_name}}},")
             if publisher:
                 bib_lines.append(f"  publisher={{{publisher}}},")
@@ -284,7 +282,7 @@ class OpenAlexScraper:
                 bib_lines.append(f"  number={{{issue}}},")
             bib_lines.append("}")
 
-            return '\n'.join(bib_lines)
+            return "\n".join(bib_lines)
 
         except Exception as e:
             print(f"Error generating BibTeX from OpenAlex work: {e}", file=sys.stderr)
@@ -293,20 +291,20 @@ class OpenAlexScraper:
     def _map_work_type_to_bibtex(self, work_type: str) -> str:
         """Map OpenAlex work type to BibTeX type"""
         type_mapping = {
-            'article': 'article',
-            'journal-article': 'article',
-            'book-chapter': 'inbook',
-            'book': 'book',
-            'conference-paper': 'inproceedings',
-            'conference': 'inproceedings',
-            'proceedings-article': 'inproceedings',
-            'dissertation': 'phdthesis',
-            'report': 'techreport',
-            'preprint': 'unpublished'
+            "article": "article",
+            "journal-article": "article",
+            "book-chapter": "inbook",
+            "book": "book",
+            "conference-paper": "inproceedings",
+            "conference": "inproceedings",
+            "proceedings-article": "inproceedings",
+            "dissertation": "phdthesis",
+            "report": "techreport",
+            "preprint": "unpublished"
         }
-        return type_mapping.get(work_type, 'article')
+        return type_mapping.get(work_type, "article")
 
-    def _generate_bibtex_key(self, authors: List[str], year: Optional[int], title: str) -> str:
+    def _generate_bibtex_key(self, authors: list[str], year: int | None, title: str) -> str:
         """Generate BibTeX key (Google Scholar style)"""
 
         if authors:
@@ -315,12 +313,12 @@ class OpenAlexScraper:
             first_author = "unknown"
 
 
-        clean_title = re.sub(r'[():-]', ' ', title).strip()
-        title_words = re.findall(r'\b\w+\b', clean_title.lower())
+        clean_title = re.sub(r"[():-]", " ", title).strip()
+        title_words = re.findall(r"\b\w+\b", clean_title.lower())
         first_word = title_words[0] if title_words else "unknown"
 
 
-        first_word = re.sub(r'[^a-z0-9]', '', first_word)
+        first_word = re.sub(r"[^a-z0-9]", "", first_word)
 
 
         key_parts = [part for part in [first_author, str(year) if year else "", first_word] if part]
@@ -351,7 +349,7 @@ class GoogleScholarScraper:
         chrome_options.add_argument("--disable-images")
         chrome_options.add_argument("--disable-javascript")
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
+        chrome_options.add_experimental_option("useAutomationExtension", False)
 
 
         chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -366,7 +364,7 @@ class GoogleScholarScraper:
         wait_time = random.uniform(self.wait_min, self.wait_max)
         time.sleep(wait_time)
 
-    def search_paper(self, title: str, year: Optional[int] = None) -> Optional[str]:
+    def search_paper(self, title: str, year: int | None = None) -> str | None:
         """
         Search for papers in Google Scholar and extract BibTeX
 
@@ -450,9 +448,8 @@ class GoogleScholarScraper:
                 text = body.text
                 if text.startswith("@"):
                     return text
-                else:
-                    print(f"No BibTeX content found for: {title}", file=sys.stderr)
-                    return None
+                print(f"No BibTeX content found for: {title}", file=sys.stderr)
+                return None
 
         except TimeoutException:
             print(f"Timeout while searching for: {title}", file=sys.stderr)
@@ -479,7 +476,7 @@ class BibTeXScraper:
             wait_max=config.scholar_wait_max
         ) if config.interactive else None
 
-    def search_paper(self, title: str, year: Optional[int] = None, doi: Optional[str] = None) -> Optional[str]:
+    def search_paper(self, title: str, year: int | None = None, doi: str | None = None) -> str | None:
         """
         Search for BibTeX (OpenAlex first, Google Scholar fallback)
 

@@ -3,13 +3,13 @@ BibTeX generation and key creation module
 """
 
 import re
-from pathlib import Path
-from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
+from ..bibtex.scholar_scraper import BibTeXScraper
 from ..utils.config import Config
 from ..utils.file_utils import load_cache, save_cache
-from ..bibtex.scholar_scraper import BibTeXScraper
 
 
 @dataclass
@@ -17,8 +17,8 @@ class BibTeXEntry:
     """BibTeX entry"""
     key: str
     entry_type: str
-    fields: Dict[str, Any]
-    raw_bibtex: Optional[str] = None
+    fields: dict[str, Any]
+    raw_bibtex: str | None = None
 
 
 class BibTeXGenerator:
@@ -29,7 +29,7 @@ class BibTeXGenerator:
         self.cache = load_cache(config.cache_file)
         self.bibtex_scraper = BibTeXScraper(config)
 
-    def generate_from_pdf(self, pdf_path: Path, config: Config, output_dir: Path) -> Optional[str]:
+    def generate_from_pdf(self, pdf_path: Path, config: Config, output_dir: Path) -> str | None:
         """Generate BibTeX from PDF and save to file - enhanced metadata"""
         try:
             # Extract metadata from PDF
@@ -147,9 +147,9 @@ class BibTeXGenerator:
             print(f"Error generating BibTeX from references: {e}")
             return ""
 
-    def _extract_references_from_markdown(self, markdown_content: str) -> List[str]:
+    def _extract_references_from_markdown(self, markdown_content: str) -> list[str]:
         """Markdown에서 REFERENCES 섹션 추출 - 개선된 버전"""
-        lines = markdown_content.split('\n')
+        lines = markdown_content.split("\n")
         references = []
         in_references = False
         current_ref = []
@@ -166,16 +166,16 @@ class BibTeXGenerator:
                 if line.startswith("## ") and line.lower() != "## references":
                     # Next section starts
                     break
-                elif line.startswith("- "):
+                if line.startswith("- "):
                     # Save previous reference (existing format)
                     if current_ref:
-                        references.append('\n'.join(current_ref))
+                        references.append("\n".join(current_ref))
                         current_ref = []
                     # Start new reference
                     current_ref = [line]
                 elif not line and current_ref:
                     # Save previous reference when empty line encountered (improved part)
-                    references.append('\n'.join(current_ref))
+                    references.append("\n".join(current_ref))
                     current_ref = []
                 elif current_ref and line:
                     # Continue reference content
@@ -183,19 +183,19 @@ class BibTeXGenerator:
                 elif not current_ref and line and len(line) > 20:
                     # Start new reference (when first line does not start with -)
                     # If starts with author name and has appropriate length
-                    if any(word.endswith(',') for word in line.split()[:3]):  # Detect author pattern
+                    if any(word.endswith(",") for word in line.split()[:3]):  # Detect author pattern
                         current_ref = [line]
 
         # Save last reference
         if current_ref:
-            references.append('\n'.join(current_ref))
+            references.append("\n".join(current_ref))
 
         # Filter empty references
         references = [ref for ref in references if ref.strip() and len(ref.strip()) > 50]
 
         return references
 
-    def _parse_reference(self, ref_text: str) -> Dict[str, Any]:
+    def _parse_reference(self, ref_text: str) -> dict[str, Any]:
         """Parse reference text - improved version"""
         ref_data = {
             "title": "",
@@ -213,7 +213,7 @@ class BibTeXGenerator:
             ref_data["doi"] = doi
 
 
-        year_match = re.search(r'\b(19\d{2}|20\d{2})\b', clean_text)
+        year_match = re.search(r"\b(19\d{2}|20\d{2})\b", clean_text)
         if year_match:
             ref_data["year"] = int(year_match.group(1))
             year_pos = year_match.start()
@@ -222,7 +222,7 @@ class BibTeXGenerator:
             authors_part = clean_text[:year_pos].strip()
             if authors_part:
 
-                authors_part = re.sub(r'[.()]+$', '', authors_part).strip()
+                authors_part = re.sub(r"[.()]+$", "", authors_part).strip()
 
 
                 authors = self._parse_authors(authors_part)
@@ -230,7 +230,7 @@ class BibTeXGenerator:
 
 
             after_year = clean_text[year_pos + 4:].strip()
-            after_year = re.sub(r'^[.\s()]+', '', after_year)
+            after_year = re.sub(r"^[.\s()]+", "", after_year)
 
 
             title = self._extract_title_from_reference(after_year)
@@ -241,35 +241,34 @@ class BibTeXGenerator:
 
         return ref_data
 
-    def _parse_authors(self, authors_text: str) -> List[str]:
+    def _parse_authors(self, authors_text: str) -> list[str]:
         """Parse author text - improved version"""
         authors = []
 
         # Handle multiple separators: comma, "and", "&", "et al."
-        authors_text = authors_text.replace('&', 'and')
+        authors_text = authors_text.replace("&", "and")
 
         # Handle "et al."
-        if 'et al.' in authors_text.lower():
-            authors_text = authors_text.lower().split('et al.')[0].strip()
+        if "et al." in authors_text.lower():
+            authors_text = authors_text.lower().split("et al.")[0].strip()
 
         # Separate by "and"
-        if ' and ' in authors_text:
-            author_parts = [part.strip() for part in authors_text.split(' and ') if part.strip()]
+        if " and " in authors_text:
+            author_parts = [part.strip() for part in authors_text.split(" and ") if part.strip()]
         else:
             author_parts = [authors_text]
 
         # Process authors separated by commas in each part
         for part in author_parts:
-            if ',' in part:
+            if "," in part:
                 # When separated by commas (multiple authors)
-                sub_authors = [sub.strip() for sub in part.split(',') if sub.strip()]
+                sub_authors = [sub.strip() for sub in part.split(",") if sub.strip()]
                 for sub_author in sub_authors:
                     if sub_author:
                         authors.append(self._normalize_author_name(sub_author))
-            else:
-                # Single author
-                if part.strip():
-                    authors.append(self._normalize_author_name(part.strip()))
+            # Single author
+            elif part.strip():
+                authors.append(self._normalize_author_name(part.strip()))
 
         return authors
 
@@ -278,16 +277,14 @@ class BibTeXGenerator:
         author = author.strip()
 
 
-        if ',' in author:
-            return author.split(',')[0].strip()
-        else:
+        if "," in author:
+            return author.split(",")[0].strip()
 
-            name_parts = author.split()
-            if len(name_parts) >= 2:
+        name_parts = author.split()
+        if len(name_parts) >= 2:
 
-                return name_parts[-1]
-            else:
-                return author
+            return name_parts[-1]
+        return author
 
     def _extract_title_from_reference(self, text: str) -> str:
         """Extract title from reference - improved version"""
@@ -300,29 +297,28 @@ class BibTeXGenerator:
             return title_match.group(1).strip()
 
         # Extract first sentence ending with period (.)
-        sentences = re.split(r'\.\s+', text)
+        sentences = re.split(r"\.\s+", text)
         if sentences and len(sentences[0]) > 10:  # If not too short
             title = sentences[0].strip()
             # Remove journal name patterns (e.g., "Journal name,")
-            title = re.sub(r',\s+[A-Z][a-zA-Z\s]+,\s*$', '', title)
+            title = re.sub(r",\s+[A-Z][a-zA-Z\s]+,\s*$", "", title)
             return title
 
         # Extract title of reasonable length from entire text
         words = text.split()
         if len(words) <= 15:  # Short title
             return text.strip()
-        else:
-            # Limit to first 15 words
-            return ' '.join(words[:15]).strip()
+        # Limit to first 15 words
+        return " ".join(words[:15]).strip()
 
-    def _extract_doi_from_reference(self, text: str) -> Optional[str]:
+    def _extract_doi_from_reference(self, text: str) -> str | None:
         """Extract DOI from reference text"""
 
         doi_patterns = [
-            r'https?://doi\.org/([^\s]+)',
-            r'doi:\s*([^\s]+)',
-            r'DOI:\s*([^\s]+)',
-            r'\b(10\.\d{4,9}/[^\s]+)\b'
+            r"https?://doi\.org/([^\s]+)",
+            r"doi:\s*([^\s]+)",
+            r"DOI:\s*([^\s]+)",
+            r"\b(10\.\d{4,9}/[^\s]+)\b"
         ]
 
         for pattern in doi_patterns:
@@ -330,9 +326,9 @@ class BibTeXGenerator:
             if match:
                 doi = match.group(1) if len(match.groups()) > 0 else match.group(0)
 
-                doi = re.sub(r'^https?://doi\.org/', '', doi)
+                doi = re.sub(r"^https?://doi\.org/", "", doi)
 
-                doi = doi.replace('%2F', '/').replace('%3A', ':')
+                doi = doi.replace("%2F", "/").replace("%3A", ":")
                 return doi.strip()
 
         return None
@@ -368,8 +364,8 @@ class BibTeXGenerator:
 
     def generate_bibtex_key_google_style(
         self,
-        authors: List[str],
-        year: Optional[int],
+        authors: list[str],
+        year: int | None,
         title: str
     ) -> str:
         """
@@ -381,8 +377,8 @@ class BibTeXGenerator:
         if authors:
             author = authors[0].strip()
             # Handle "Last, First" format
-            if ',' in author:
-                first_author = author.split(',')[0].strip().lower()
+            if "," in author:
+                first_author = author.split(",")[0].strip().lower()
             else:
                 # Handle "First Last" format
                 name_parts = author.split()
@@ -393,7 +389,7 @@ class BibTeXGenerator:
                     first_author = author.lower()
 
             # Remove any remaining punctuation and spaces
-            first_author = re.sub(r'[^a-z0-9]', '', first_author)
+            first_author = re.sub(r"[^a-z0-9]", "", first_author)
         else:
             first_author = "unknown"
 
@@ -401,14 +397,14 @@ class BibTeXGenerator:
         year_str = str(year) if year else ""
 
         # Extract first meaningful word from title (remove brackets, colons, etc.)
-        clean_title = re.sub(r'[():-]', ' ', title).strip()
-        title_words = re.findall(r'\b\w+\b', clean_title.lower())
+        clean_title = re.sub(r"[():-]", " ", title).strip()
+        title_words = re.findall(r"\b\w+\b", clean_title.lower())
 
         first_word = ""
         if title_words:
             first_word = title_words[0]
             # Remove special characters and normalize
-            first_word = re.sub(r'[^a-z0-9]', '', first_word)
+            first_word = re.sub(r"[^a-z0-9]", "", first_word)
         else:
             first_word = "unknown"
 
@@ -444,13 +440,13 @@ class BibTeXGenerator:
             formatted_authors = []
             for author in metadata.authors:
 
-                if ',' in author:
+                if "," in author:
                     formatted_authors.append(author)
                 else:
                     name_parts = author.split()
                     if len(name_parts) >= 2:
 
-                        first_name = ' '.join(name_parts[:-1])
+                        first_name = " ".join(name_parts[:-1])
                         last_name = name_parts[-1]
                         formatted_authors.append(f"{last_name}, {first_name}")
                     else:
@@ -483,21 +479,21 @@ class BibTeXGenerator:
         for key, value in entry.fields.items():
             if value:  # Exclude empty values
                 # Escape special characters in BibTeX
-                escaped_value = str(value).replace('&', '\\&').replace('%', '\\%')
+                escaped_value = str(value).replace("&", "\\&").replace("%", "\\%")
                 lines.append(f"  {key}={{{escaped_value}}}")
 
         lines.append("}")
 
         return "\n".join(lines)
 
-    def _search_bibtex(self, title: str, year: Optional[int], doi: Optional[str] = None) -> Optional[str]:
+    def _search_bibtex(self, title: str, year: int | None, doi: str | None = None) -> str | None:
         """Search for BibTeX (OpenAlex first, Google Scholar fallback)"""
         if not title:
             return None
 
 
         cache_key = f"{title}::{year or ''}::{doi or ''}"
-        if cache_key in self.cache and self.cache[cache_key]:
+        if self.cache.get(cache_key):
             return self.cache[cache_key]
 
         try:
@@ -508,9 +504,8 @@ class BibTeXGenerator:
 
                 self.cache[cache_key] = bibtex
                 return bibtex
-            else:
 
-                self.cache[cache_key] = ""
+            self.cache[cache_key] = ""
 
         except Exception as e:
             print(f"Error searching BibTeX: {e}")
@@ -548,7 +543,6 @@ class BibTeXGenerator:
         """Enhance metadata with DOI (future implementation)"""
 
 
-        pass
 
     def _format_bibtex_entry(self, entry: BibTeXEntry) -> str:
         """Format BibTeX entry to string"""

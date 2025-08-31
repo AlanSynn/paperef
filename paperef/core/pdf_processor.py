@@ -2,25 +2,24 @@
 PDF processing and Docling integration module
 """
 
-import os
 import re
-from pathlib import Path
-from typing import List, Optional, Tuple, Dict, Any
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from ..utils.config import Config
-from ..utils.file_utils import ensure_directory, get_file_hash, sanitize_filename
+from ..utils.file_utils import ensure_directory
 
 
 @dataclass
 class PDFMetadata:
     """PDF metadata"""
-    title: Optional[str] = None
-    authors: List[str] = None
-    year: Optional[int] = None
-    doi: Optional[str] = None
-    abstract: Optional[str] = None
-    keywords: List[str] = None
+    title: str | None = None
+    authors: list[str] = None
+    year: int | None = None
+    doi: str | None = None
+    abstract: str | None = None
+    keywords: list[str] = None
 
     def __post_init__(self):
         if self.authors is None:
@@ -40,9 +39,9 @@ class PDFProcessor:
     def _init_docling(self):
         """Initialize Docling processor"""
         try:
-            from docling.document_converter import DocumentConverter
-            from docling.datamodel.pipeline_options import PdfPipelineOptions
             from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+            from docling.document_converter import DocumentConverter
 
             # PDF pipeline options
             pipeline_options = PdfPipelineOptions()
@@ -64,7 +63,7 @@ class PDFProcessor:
                 "Install with: pip install docling"
             ) from e
 
-    def extract_title(self, pdf_path: Path) -> Optional[str]:
+    def extract_title(self, pdf_path: Path) -> str | None:
         """Extract title from PDF"""
         try:
 
@@ -84,12 +83,12 @@ class PDFProcessor:
 
 
                     title_patterns = [
-                        r'^([A-Z][^.!?\n]{20,80})[.!?\n]',
-                        r'^(.+)\n={3,}',
-                        r'^(.+)\n-{3,}',
+                        r"^([A-Z][^.!?\n]{20,80})[.!?\n]",
+                        r"^(.+)\n={3,}",
+                        r"^(.+)\n-{3,}",
                     ]
 
-                    lines = text.split('\n')
+                    lines = text.split("\n")
                     for pattern in title_patterns:
                         for line in lines[:3]:
                             match = re.search(pattern, line.strip(), re.MULTILINE)
@@ -107,9 +106,9 @@ class PDFProcessor:
 
         stem = pdf_path.stem
 
-        title = re.sub(r'([a-z])([A-Z])', r'\1 \2', stem)
-        title = re.sub(r'_+', ' ', title)
-        title = title.replace('-', ' ')
+        title = re.sub(r"([a-z])([A-Z])", r"\1 \2", stem)
+        title = re.sub(r"_+", " ", title)
+        title = title.replace("-", " ")
 
         return title.strip() if title.strip() else None
 
@@ -144,7 +143,7 @@ class PDFProcessor:
 
         return metadata
 
-    def _extract_year_from_metadata(self, pdf_metadata: Dict[str, Any]) -> Optional[int]:
+    def _extract_year_from_metadata(self, pdf_metadata: dict[str, Any]) -> int | None:
         """Extract year from metadata"""
 
         date_fields = ["creationDate", "modDate", "producer"]
@@ -153,15 +152,15 @@ class PDFProcessor:
             value = pdf_metadata.get(field, "")
             if value:
 
-                year_match = re.search(r'\b(19\d{2}|20\d{2})\b', str(value))
+                year_match = re.search(r"\b(19\d{2}|20\d{2})\b", str(value))
                 if year_match:
                     return int(year_match.group(1))
 
         return None
 
-    def _extract_doi_from_pdf(self, doc) -> Optional[str]:
+    def _extract_doi_from_pdf(self, doc) -> str | None:
         """Extract DOI from PDF"""
-        doi_pattern = r'\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b'
+        doi_pattern = r"\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b"
 
         # Search for DOI on the first few pages
         for page_num in range(min(5, len(doc))):
@@ -174,7 +173,7 @@ class PDFProcessor:
 
         return None
 
-    def _extract_abstract_from_pdf(self, doc) -> Optional[str]:
+    def _extract_abstract_from_pdf(self, doc) -> str | None:
         """Extract abstract from PDF"""
 
         if len(doc) > 0:
@@ -183,9 +182,9 @@ class PDFProcessor:
 
 
             abstract_patterns = [
-                r'Abstract\s*\n(.*?)(?:\n\n|\n[A-Z][a-z]+|\n\d+\.)',
-                r'ABSTRACT\s*\n(.*?)(?:\n\n|\n[A-Z][a-z]+|\n\d+\.)',
-                r'Summary\s*\n(.*?)(?:\n\n|\n[A-Z][a-z]+|\n\d+\.)',
+                r"Abstract\s*\n(.*?)(?:\n\n|\n[A-Z][a-z]+|\n\d+\.)",
+                r"ABSTRACT\s*\n(.*?)(?:\n\n|\n[A-Z][a-z]+|\n\d+\.)",
+                r"Summary\s*\n(.*?)(?:\n\n|\n[A-Z][a-z]+|\n\d+\.)",
             ]
 
             for pattern in abstract_patterns:
@@ -197,7 +196,7 @@ class PDFProcessor:
 
         return None
 
-    def _extract_authors_from_pdf(self, doc) -> List[str]:
+    def _extract_authors_from_pdf(self, doc) -> list[str]:
         """Extract author information from PDF"""
         authors = []
 
@@ -209,10 +208,10 @@ class PDFProcessor:
 
                 # Common author patterns
                 author_patterns = [
-                    r'Authors?:\s*([^\n]+)',
-                    r'By\s+([^\n]+)',
-                    r'Written by\s+([^\n]+)',
-                    r'^([A-Z][a-z]+(?:\s+[A-Z]\.?\s*)*[A-Z][a-z]+(?:\s*,\s*[A-Z][a-z]+(?:\s+[A-Z]\.?\s*)*[A-Z][a-z]+)*)\s*\n',
+                    r"Authors?:\s*([^\n]+)",
+                    r"By\s+([^\n]+)",
+                    r"Written by\s+([^\n]+)",
+                    r"^([A-Z][a-z]+(?:\s+[A-Z]\.?\s*)*[A-Z][a-z]+(?:\s*,\s*[A-Z][a-z]+(?:\s+[A-Z]\.?\s*)*[A-Z][a-z]+)*)\s*\n",
                 ]
 
                 for pattern in author_patterns:
@@ -220,10 +219,10 @@ class PDFProcessor:
                     if match:
                         author_text = match.group(1).strip()
                         # Separate authors separated by comma or "and"
-                        if ',' in author_text:
-                            authors = [a.strip() for a in author_text.split(',') if a.strip()]
-                        elif ' and ' in author_text:
-                            authors = [a.strip() for a in author_text.split(' and ') if a.strip()]
+                        if "," in author_text:
+                            authors = [a.strip() for a in author_text.split(",") if a.strip()]
+                        elif " and " in author_text:
+                            authors = [a.strip() for a in author_text.split(" and ") if a.strip()]
                         else:
                             authors = [author_text]
 
@@ -236,7 +235,7 @@ class PDFProcessor:
 
         return authors
 
-    def _extract_keywords_from_pdf(self, doc) -> List[str]:
+    def _extract_keywords_from_pdf(self, doc) -> list[str]:
         """Extract keywords from PDF"""
         keywords = []
 
@@ -248,9 +247,9 @@ class PDFProcessor:
 
 
                 keyword_patterns = [
-                    r'Keywords?:\s*([^\n]+)',
-                    r'Key words?:\s*([^\n]+)',
-                    r'Subject classifications?:\s*([^\n]+)',
+                    r"Keywords?:\s*([^\n]+)",
+                    r"Key words?:\s*([^\n]+)",
+                    r"Subject classifications?:\s*([^\n]+)",
                 ]
 
                 for pattern in keyword_patterns:
@@ -258,10 +257,10 @@ class PDFProcessor:
                     if match:
                         keyword_text = match.group(1).strip()
 
-                        if ',' in keyword_text:
-                            keywords = [k.strip() for k in keyword_text.split(',') if k.strip()]
-                        elif ';' in keyword_text:
-                            keywords = [k.strip() for k in keyword_text.split(';') if k.strip()]
+                        if "," in keyword_text:
+                            keywords = [k.strip() for k in keyword_text.split(",") if k.strip()]
+                        elif ";" in keyword_text:
+                            keywords = [k.strip() for k in keyword_text.split(";") if k.strip()]
                         else:
                             keywords = [keyword_text]
 
@@ -282,7 +281,7 @@ class PDFProcessor:
         pdf_path: Path,
         output_dir: Path,
         image_mode: str = "placeholder"
-    ) -> Tuple[str, List[Path]]:
+    ) -> tuple[str, list[Path]]:
         """
         Convert PDF to Markdown
 
@@ -326,7 +325,7 @@ class PDFProcessor:
         self,
         docling_result,
         output_dir: Path
-    ) -> List[Path]:
+    ) -> list[Path]:
         """Process images in placeholder mode"""
         image_paths = []
         artifacts_dir = output_dir / self.config.artifacts_dir_name
@@ -335,7 +334,7 @@ class PDFProcessor:
         try:
             # Extract and save images from Docling result
             for item in docling_result.document.body.content:
-                if hasattr(item, 'image') and item.image:
+                if hasattr(item, "image") and item.image:
                     # Create image filename based on hash
                     image_hash = get_file_hash_from_bytes(item.image.get_image())
                     image_filename = f"image_{image_hash}.png"
@@ -356,7 +355,7 @@ class PDFProcessor:
         self,
         docling_result,
         output_dir: Path
-    ) -> List[Path]:
+    ) -> list[Path]:
         """Process images in VLM mode (future implementation)"""
 
 
@@ -388,10 +387,10 @@ class PDFProcessor:
     def _clean_markdown_formatting(self, text: str) -> str:
         """Clean markdown formatting"""
         # Clean consecutive empty lines
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
         # Clean unnecessary spaces
-        lines = text.split('\n')
+        lines = text.split("\n")
         cleaned_lines = []
 
         for line in lines:
@@ -399,7 +398,7 @@ class PDFProcessor:
             line = line.rstrip()
             cleaned_lines.append(line)
 
-        return '\n'.join(cleaned_lines)
+        return "\n".join(cleaned_lines)
 
     def _add_metadata_frontmatter(
         self,
@@ -410,16 +409,16 @@ class PDFProcessor:
         frontmatter_lines = ["---"]
 
         if metadata.title:
-            frontmatter_lines.append(f"title: \"{metadata.title}\"")
+            frontmatter_lines.append(f'title: "{metadata.title}"')
         if metadata.authors:
-            authors_str = ", ".join(f"\"{author}\"" for author in metadata.authors)
+            authors_str = ", ".join(f'"{author}"' for author in metadata.authors)
             frontmatter_lines.append(f"authors: [{authors_str}]")
         if metadata.year:
             frontmatter_lines.append(f"year: {metadata.year}")
         if metadata.doi:
-            frontmatter_lines.append(f"doi: \"{metadata.doi}\"")
+            frontmatter_lines.append(f'doi: "{metadata.doi}"')
         if metadata.keywords:
-            keywords_str = ", ".join(f"\"{kw}\"" for kw in metadata.keywords)
+            keywords_str = ", ".join(f'"{kw}"' for kw in metadata.keywords)
             frontmatter_lines.append(f"keywords: [{keywords_str}]")
 
         frontmatter_lines.append("---")

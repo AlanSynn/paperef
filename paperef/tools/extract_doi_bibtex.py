@@ -15,8 +15,10 @@ Dependencies:
   pip install bibtexparser requests rich
 
 Notes:
-  - Set CONTACT_EMAIL to your email for Crossref/OpenAlex User-Agent (politeness & higher quotas).
-  - This script is interactive by default: it prompts for ambiguous matches and missing fields.
+  - Set CONTACT_EMAIL to your email for Crossref/OpenAlex User-Agent
+    (politeness & higher quotas).
+  - This script is interactive by default: it prompts for ambiguous matches
+    and missing fields.
   - For ACM-style entries like "138:1--138:12", --acm-pages-to-article converts to
     articleno=138, numpages=12 and removes pages.
 """
@@ -25,19 +27,18 @@ import argparse
 import re
 import sys
 import time
-import json
-from typing import Dict, Any, List, Optional, Tuple
-from urllib.parse import urlencode
+from contextlib import suppress
+from difflib import SequenceMatcher
+from typing import Any
 
-import requests
 import bibtexparser
+import requests
 from bibtexparser.bparser import BibTexParser
 from bibtexparser.bwriter import BibTexWriter
-from difflib import SequenceMatcher
 
 try:
     from rich.console import Console
-    from rich.prompt import Prompt, Confirm
+    from rich.prompt import Confirm, Prompt
     from rich.table import Table
     from rich.text import Text
     RICH_AVAILABLE = True
@@ -197,23 +198,20 @@ VENUE_TO_PUBLISHER = {
 def prompt_text(message: str, default: str = "") -> str:
     if RICH_AVAILABLE:
         return Prompt.ask(message, default=default)
-    else:
-        if default:
-            response = input(f"{message} (default: {default}): ").strip()
-            return response if response else default
-        else:
-            return input(f"{message}: ").strip()
+    if default:
+        response = input(f"{message} (default: {default}): ").strip()
+        return response if response else default
+    return input(f"{message}: ").strip()
 
 def prompt_confirm(message: str, default: bool = True) -> bool:
     if RICH_AVAILABLE:
         return Confirm.ask(message, default=default)
-    else:
-        response = input(f"{message} (y/n, default {'y' if default else 'n'}): ").strip().lower()
-        if not response:
-            return default
-        return response in ('y', 'yes', 'true', '1')
+    response = input(f"{message} (y/n, default {'y' if default else 'n'}): ").strip().lower()
+    if not response:
+        return default
+    return response in ("y", "yes", "true", "1")
 
-def display_candidates(candidates: List[Dict[str, Any]], title: str, authors: List[str], year: Optional[int]) -> int:
+def display_candidates(candidates: list[dict[str, Any]], title: str, authors: list[str], year: int | None) -> int:
     if not RICH_AVAILABLE:
         print(f"Candidates for '{title}':")
         for i, cand in enumerate(candidates):
@@ -222,28 +220,27 @@ def display_candidates(candidates: List[Dict[str, Any]], title: str, authors: Li
             print(f"{i+1}. DOI: {doi}, Title: {cr_title}")
         choice = int(input("Choose candidate (1-n) or 0 to skip: ")) - 1
         return choice if 0 <= choice < len(candidates) else -1
-    else:
-        table = Table(title=f"Candidates for '{title}'")
-        table.add_column("Index", style="cyan", no_wrap=True)
-        table.add_column("DOI", style="magenta")
-        table.add_column("Title")
-        table.add_column("Authors")
-        table.add_column("Year")
-        table.add_column("Publisher")
-        for i, cand in enumerate(candidates):
-            doi = cand.get("DOI", "N/A")
-            cr_title = (cand.get("title") or [""])[0][:50] + "..." if len((cand.get("title") or [""])[0]) > 50 else (cand.get("title") or [""])[0]
-            cr_auth = ", ".join([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)])[:30] + "..." if len([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)]) > 30 else ", ".join([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)])
-            cr_year = str(year_from_crossref(cand)) if year_from_crossref(cand) else "N/A"
-            cr_pub = cand.get("publisher", "N/A")
-            table.add_row(str(i+1), doi, cr_title, cr_auth, cr_year, cr_pub)
-        console.print(table)
-        choice = Prompt.ask("Choose candidate (1-n) or 0 to skip", default="0")
-        try:
-            idx = int(choice) - 1
-            return idx if 0 <= idx < len(candidates) else -1
-        except ValueError:
-            return -1
+    table = Table(title=f"Candidates for '{title}'")
+    table.add_column("Index", style="cyan", no_wrap=True)
+    table.add_column("DOI", style="magenta")
+    table.add_column("Title")
+    table.add_column("Authors")
+    table.add_column("Year")
+    table.add_column("Publisher")
+    for i, cand in enumerate(candidates):
+        doi = cand.get("DOI", "N/A")
+        cr_title = (cand.get("title") or [""])[0][:50] + "..." if len((cand.get("title") or [""])[0]) > 50 else (cand.get("title") or [""])[0]
+        cr_auth = ", ".join([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)])[:30] + "..." if len([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)]) > 30 else ", ".join([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)])
+        cr_year = str(year_from_crossref(cand)) if year_from_crossref(cand) else "N/A"
+        cr_pub = cand.get("publisher", "N/A")
+        table.add_row(str(i+1), doi, cr_title, cr_auth, cr_year, cr_pub)
+    console.print(table)
+    choice = Prompt.ask("Choose candidate (1-n) or 0 to skip", default="0")
+    try:
+        idx = int(choice) - 1
+        return idx if 0 <= idx < len(candidates) else -1
+    except ValueError:
+        return -1
 
 # --- Helpers ---
 
@@ -256,35 +253,35 @@ def simplify_title(t: str) -> str:
     t = re.sub(r"[^a-z0-9\s]", " ", t)
     return norm_whitespace(t)
 
-def author_lastnames(authors_field: str) -> List[str]:
+def author_lastnames(authors_field: str) -> list[str]:
     if not authors_field:
         return []
-    
+
     # Handle LaTeX accents before processing
     # Common LaTeX accent commands
     accents = {
-        r'{\i}': 'i',
-        r'{\\i}': 'i', 
-        r'{\c s}': 'ş',
-        r'{\c c}': 'ç',
-        r'{\'a}': 'á',
-        r'{\'e}': 'é',
-        r'{\'i}': 'í',
-        r'{\'o}': 'ó',
-        r'{\'u}': 'ú',
-        r'{\"a}': 'ä',
-        r'{\"o}': 'ö',
-        r'{\"u}': 'ü',
-        r'{\^a}': 'â',
-        r'{\^e}': 'ê',
-        r'{\^i}': 'î',
-        r'{\^o}': 'ô',
-        r'{\^u}': 'û',
+        r"{\i}": "i",
+        r"{\\i}": "i",
+        r"{\c s}": "ş",
+        r"{\c c}": "ç",
+        r"{\'a}": "á",
+        r"{\'e}": "é",
+        r"{\'i}": "í",
+        r"{\'o}": "ó",
+        r"{\'u}": "ú",
+        r'{\"a}': "ä",
+        r'{\"o}': "ö",
+        r'{\"u}': "ü",
+        r"{\^a}": "â",
+        r"{\^e}": "ê",
+        r"{\^i}": "î",
+        r"{\^o}": "ô",
+        r"{\^u}": "û",
     }
-    
+
     for latex, char in accents.items():
         authors_field = authors_field.replace(latex, char)
-    
+
     parts = [a.strip() for a in authors_field.split(" and ") if a.strip()]
     lastnames = []
     for p in parts:
@@ -294,22 +291,22 @@ def author_lastnames(authors_field: str) -> List[str]:
             last = p.split(",", 1)[0].strip("{} ")
         else:
             last = p.split()[-1].strip("{} ")
-        
+
         # Unicode normalization for better matching - handle common issues
         # Convert common Unicode characters to ASCII equivalents
         unicode_map = {
-            'ı': 'i',  # dotless i
-            'ş': 's',  # s with cedilla
-            'ç': 'c',  # c with cedilla
-            'ğ': 'g',  # g with breve
-            'ö': 'o',  # o with diaeresis
-            'ü': 'u',  # u with diaeresis
-            'İ': 'i',  # capital dotless i
-            'Ş': 's',  # capital s with cedilla
-            'Ç': 'c',  # capital c with cedilla
-            'Ğ': 'g',  # capital g with breve
-            'Ö': 'o',  # capital o with diaeresis
-            'Ü': 'u',  # capital u with diaeresis
+            "ı": "i",  # dotless i
+            "ş": "s",  # s with cedilla
+            "ç": "c",  # c with cedilla
+            "ğ": "g",  # g with breve
+            "ö": "o",  # o with diaeresis
+            "ü": "u",  # u with diaeresis
+            "İ": "i",  # capital dotless i
+            "Ş": "s",  # capital s with cedilla
+            "Ç": "c",  # capital c with cedilla
+            "Ğ": "g",  # capital g with breve
+            "Ö": "o",  # capital o with diaeresis
+            "Ü": "u",  # capital u with diaeresis
         }
         for unicode_char, ascii_char in unicode_map.items():
             last = last.replace(unicode_char, ascii_char)
@@ -320,7 +317,7 @@ def title_similarity(a: str, b: str) -> float:
     a2, b2 = simplify_title(a), simplify_title(b)
     if not a2 or not b2:
         return 0.0
-    
+
     # If one title is much shorter, check if it's a substring of the other
     if len(a2) > len(b2) * 2:
         # b2 is much shorter, check if it's contained in a2
@@ -330,10 +327,10 @@ def title_similarity(a: str, b: str) -> float:
         # a2 is much shorter, check if it's contained in b2
         if a2 in b2:
             return 0.8  # High score for substring match
-    
+
     # Standard similarity
     base_sim = SequenceMatcher(None, a2, b2).ratio()
-    
+
     # Boost score if key terms match
     a_words = set(a2.split())
     b_words = set(b2.split())
@@ -342,21 +339,19 @@ def title_similarity(a: str, b: str) -> float:
         word_overlap = len(intersection) / max(len(a_words), len(b_words))
         # Combine sequence similarity with word overlap
         return 0.7 * base_sim + 0.3 * word_overlap
-    
+
     return base_sim
 
-def year_from_crossref(item: Dict[str, Any]) -> Optional[int]:
+def year_from_crossref(item: dict[str, Any]) -> int | None:
     # Crossref 'issued' or 'published-print' structure: {"date-parts": [[YYYY, MM, DD]]}
     for key in ("issued", "published-print", "published-online"):
         if key in item and "date-parts" in item[key] and item[key]["date-parts"]:
             y = item[key]["date-parts"][0][0]
-            try:
+            with suppress(Exception):
                 return int(y)
-            except Exception:
-                pass
     return None
 
-def safe_get(d: Dict[str, Any], *keys, default=None):
+def safe_get(d: dict[str, Any], *keys, default=None):
     cur = d
     for k in keys:
         if isinstance(cur, dict) and k in cur:
@@ -365,14 +360,14 @@ def safe_get(d: Dict[str, Any], *keys, default=None):
             return default
     return cur
 
-def best_candidate_by_score(cands: List[Dict[str, Any]], title: str, authors: List[str], year: Optional[int], publisher: Optional[str] = None) -> Tuple[Optional[Dict[str, Any]], float]:
+def best_candidate_by_score(cands: list[dict[str, Any]], title: str, authors: list[str], year: int | None, publisher: str | None = None) -> tuple[dict[str, Any] | None, float]:
     best = None
     best_score = 0.0
     for it in cands:
         cr_title_list = it.get("title") or []
         cr_title = cr_title_list[0] if cr_title_list else ""
         sim = title_similarity(title, cr_title)
-        
+
         # Debug for specific cases
         if "dowry" in title.lower() and "dowry" in cr_title.lower():
             print(f"  Debug: Original title: '{title}'")
@@ -385,18 +380,18 @@ def best_candidate_by_score(cands: List[Dict[str, Any]], title: str, authors: Li
         cr_auth_last = [ (a.get("family") or "").lower() for a in (it.get("author") or []) if isinstance(a, dict) ]
         # Apply Unicode normalization to Crossref authors too
         unicode_map = {
-            'ı': 'i',  # dotless i
-            'ş': 's',  # s with cedilla
-            'ç': 'c',  # c with cedilla
-            'ğ': 'g',  # g with breve
-            'ö': 'o',  # o with diaeresis
-            'ü': 'u',  # u with diaeresis
-            'İ': 'i',  # capital dotless i
-            'Ş': 's',  # capital s with cedilla
-            'Ç': 'c',  # capital c with cedilla
-            'Ğ': 'g',  # capital g with breve
-            'Ö': 'o',  # capital o with diaeresis
-            'Ü': 'u',  # capital u with diaeresis
+            "ı": "i",  # dotless i
+            "ş": "s",  # s with cedilla
+            "ç": "c",  # c with cedilla
+            "ğ": "g",  # g with breve
+            "ö": "o",  # o with diaeresis
+            "ü": "u",  # u with diaeresis
+            "İ": "i",  # capital dotless i
+            "Ş": "s",  # capital s with cedilla
+            "Ç": "c",  # capital c with cedilla
+            "Ğ": "g",  # capital g with breve
+            "Ö": "o",  # capital o with diaeresis
+            "Ü": "u",  # capital u with diaeresis
         }
         cr_auth_last = [name.translate(str.maketrans(unicode_map)) for name in cr_auth_last]
         if authors:
@@ -404,7 +399,7 @@ def best_candidate_by_score(cands: List[Dict[str, Any]], title: str, authors: Li
             author_score = min(1.0, len(inter) / max(1, min(len(authors), 3)))
         else:
             author_score = 0.0
-        
+
         # Debug for specific cases
         if "dowry" in title.lower() and "dowry" in cr_title.lower():
             print(f"  Debug: Original authors: {authors}")
@@ -418,32 +413,12 @@ def best_candidate_by_score(cands: List[Dict[str, Any]], title: str, authors: Li
         if publisher and cr_publisher:
             pub_lower = publisher.lower().strip()
             # Exact match
-            if pub_lower == cr_publisher:
-                pub_score = 1.0
-            # Contains match
-            elif pub_lower in cr_publisher or cr_publisher in pub_lower:
-                pub_score = 1.0
-            # Common abbreviations
-            elif (("acm" in pub_lower or "association for computing machinery" in pub_lower) and 
-                  ("acm" in cr_publisher or "association for computing machinery" in cr_publisher)):
-                pub_score = 1.0
-            elif (("ieee" in pub_lower or "institute of electrical and electronics engineers" in pub_lower) and 
-                  ("ieee" in cr_publisher or "institute of electrical and electronics engineers" in cr_publisher)):
-                pub_score = 1.0
-            elif (("springer" in pub_lower or "springer nature" in pub_lower) and 
-                  ("springer" in cr_publisher or "springer nature" in cr_publisher)):
-                pub_score = 1.0
-            elif (("elsevier" in pub_lower) and ("elsevier" in cr_publisher)):
-                pub_score = 1.0
-            elif (("wiley" in pub_lower) and ("wiley" in cr_publisher)):
-                pub_score = 1.0
-            elif (("taylor" in pub_lower and "francis" in pub_lower) and 
-                  ("taylor" in cr_publisher and "francis" in cr_publisher)):
-                pub_score = 1.0
-            elif (("oxford" in pub_lower and "press" in pub_lower) and 
-                  ("oxford" in cr_publisher and "press" in cr_publisher)):
-                pub_score = 1.0
-            elif (("cambridge" in pub_lower and "press" in pub_lower) and 
+            if pub_lower == cr_publisher or pub_lower in cr_publisher or cr_publisher in pub_lower or (("acm" in pub_lower or "association for computing machinery" in pub_lower) and
+                  ("acm" in cr_publisher or "association for computing machinery" in cr_publisher)) or (("ieee" in pub_lower or "institute of electrical and electronics engineers" in pub_lower) and
+                  ("ieee" in cr_publisher or "institute of electrical and electronics engineers" in cr_publisher)) or (("springer" in pub_lower or "springer nature" in pub_lower) and
+                  ("springer" in cr_publisher or "springer nature" in cr_publisher)) or (("elsevier" in pub_lower) and ("elsevier" in cr_publisher)) or (("wiley" in pub_lower) and ("wiley" in cr_publisher)) or (("taylor" in pub_lower and "francis" in pub_lower) and
+                  ("taylor" in cr_publisher and "francis" in cr_publisher)) or (("oxford" in pub_lower and "press" in pub_lower) and
+                  ("oxford" in cr_publisher and "press" in cr_publisher)) or (("cambridge" in pub_lower and "press" in pub_lower) and
                   ("cambridge" in cr_publisher and "press" in cr_publisher)):
                 pub_score = 1.0
 
@@ -454,10 +429,10 @@ def best_candidate_by_score(cands: List[Dict[str, Any]], title: str, authors: Li
 
 # --- Query functions ---
 
-def query_crossref(title: str, authors: List[str], year: Optional[int], rows: int = 8) -> List[Dict[str, Any]]:
+def query_crossref(title: str, authors: list[str], year: int | None, rows: int = 8) -> list[dict[str, Any]]:
     # Clean title for API query - remove special characters that cause issues
-    clean_title = re.sub(r'[{}()\[\]]', '', title)  # Remove braces, parentheses, brackets
-    clean_title = re.sub(r'[^\w\s]', ' ', clean_title)  # Replace other punctuation with space
+    clean_title = re.sub(r"[{}()\[\]]", "", title)  # Remove braces, parentheses, brackets
+    clean_title = re.sub(r"[^\w\s]", " ", clean_title)  # Replace other punctuation with space
     clean_title = norm_whitespace(clean_title)
 
     params = {
@@ -478,7 +453,7 @@ def query_crossref(title: str, authors: List[str], year: Optional[int], rows: in
     time.sleep(RATE_LIMIT_SLEEP)
     return items
 
-def fetch_doi_metadata(doi: str) -> Optional[Dict[str, Any]]:
+def fetch_doi_metadata(doi: str) -> dict[str, Any] | None:
     """Fetch full metadata for a DOI from Crossref."""
     if not doi:
         return None
@@ -498,10 +473,10 @@ def fetch_doi_metadata(doi: str) -> Optional[Dict[str, Any]]:
     except requests.RequestException:
         return None
 
-def query_openalex(title: str, authors: List[str], year: Optional[int], per_page: int = 8) -> List[Dict[str, Any]]:
+def query_openalex(title: str, authors: list[str], year: int | None, per_page: int = 8) -> list[dict[str, Any]]:
     # Clean title for API query
-    clean_title = re.sub(r'[{}()\[\]]', '', title)
-    clean_title = re.sub(r'[^\w\s]', ' ', clean_title)
+    clean_title = re.sub(r"[{}()\[\]]", "", title)
+    clean_title = re.sub(r"[^\w\s]", " ", clean_title)
     clean_title = norm_whitespace(clean_title)
 
     # OpenAlex search by title; returns items with 'doi', 'authorships', 'host_venue', 'publication_year'
@@ -550,7 +525,7 @@ def query_openalex(title: str, authors: List[str], year: Optional[int], per_page
 
 ACM_PAGES_RE = re.compile(r"^\s*(\d+)\s*:\s*1\s*[-–—]\s*\1\s*:\s*(\d+)\s*$")
 
-def pages_to_articleno_numpages(pages: str) -> Optional[Tuple[str, str]]:
+def pages_to_articleno_numpages(pages: str) -> tuple[str, str] | None:
     """
     Convert '138:1--138:12' -> ('138','12'), else None
     """
@@ -562,11 +537,11 @@ def pages_to_articleno_numpages(pages: str) -> Optional[Tuple[str, str]]:
         try:
             numpages = int(last)
             return str(articleno), str(numpages)
-        except Exception:
+        except ValueError:
             return None
     return None
 
-def infer_publisher_from_venue(venue: str) -> Optional[str]:
+def infer_publisher_from_venue(venue: str) -> str | None:
     """Infer publisher from venue name."""
     if not venue:
         return None
@@ -576,7 +551,7 @@ def infer_publisher_from_venue(venue: str) -> Optional[str]:
             return pub
     return None
 
-def normalize_publisher_address(entry: Dict[str, Any]) -> None:
+def normalize_publisher_address(entry: dict[str, Any]) -> None:
     pub = entry.get("publisher")
     if not pub:
         # Try to infer from venue
@@ -587,10 +562,10 @@ def normalize_publisher_address(entry: Dict[str, Any]) -> None:
             pub = inferred
     if not pub:
         return
-    
+
     pub_lower = pub.strip().lower()
     pub_norm = pub
-    
+
     # Normalize common publisher names
     if "association for computing machinery" in pub_lower or pub_lower == "acm":
         pub_norm = "Association for Computing Machinery"
@@ -611,9 +586,9 @@ def normalize_publisher_address(entry: Dict[str, Any]) -> None:
         pub_norm = "Oxford University Press"
     elif "taylor" in pub_lower and "francis" in pub_lower:
         pub_norm = "Taylor & Francis"
-    
+
     entry["publisher"] = pub_norm
-    
+
     # Fill address if known - more flexible matching
     for key, addr in PUBLISHER_ADDRESS.items():
         if key.lower() in pub_norm.lower() or pub_norm.lower() in key.lower():
@@ -623,7 +598,7 @@ def normalize_publisher_address(entry: Dict[str, Any]) -> None:
                 break
             break
 
-def enrich_entry(entry: Dict[str, Any], best: Dict[str, Any], acm_pages_to_article: bool = False) -> Dict[str, Any]:
+def enrich_entry(entry: dict[str, Any], best: dict[str, Any], acm_pages_to_article: bool = False) -> dict[str, Any]:
     # copy to avoid mutating input
     e = dict(entry)
 
@@ -692,7 +667,7 @@ def enrich_entry(entry: Dict[str, Any], best: Dict[str, Any], acm_pages_to_artic
 # --- Main processing ---
 
 def process_bibtex(input_path: str, output_path: str, prefer_openalex: bool = True, acm_pages_to_article: bool = False, min_score: float = 0.65, interactive: bool = True):
-    with open(input_path, "r", encoding="utf-8") as f:
+    with open(input_path, encoding="utf-8") as f:
         parser = BibTexParser(common_strings=True)
         db = bibtexparser.load(f, parser=parser)
 
@@ -702,10 +677,8 @@ def process_bibtex(input_path: str, output_path: str, prefer_openalex: bool = Tr
         title = e.get("title") or ""
         authors = author_lastnames(e.get("author",""))
         year = None
-        try:
+        with suppress(Exception):
             year = int(str(e.get("year","")).strip()[:4])
-        except Exception:
-            pass
 
         if not title.strip():
             print(f"- Skipping {e.get('ID')} (no title)")
@@ -714,7 +687,7 @@ def process_bibtex(input_path: str, output_path: str, prefer_openalex: bool = Tr
         already_has_doi = bool(e.get("doi"))
         print(f"* {e.get('ID')} | title='{title[:60]}{'...' if len(title)>60 else ''}' | DOI: {'yes' if already_has_doi else 'no'}")
 
-        items: List[Dict[str, Any]] = []
+        items: list[dict[str, Any]] = []
         try:
             if prefer_openalex:
                 items = query_openalex(title, authors, year)

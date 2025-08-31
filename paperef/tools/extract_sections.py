@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+"""
+Extract specific sections from research papers.
+"""
 import re
-import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,12 +32,13 @@ SYNONYMS = {
         "abstract", "a b s t r a c t",
     },
     "introduction": {
-        "introduction", "1 introduction", "1. introduction", "introducti on",  # occasional OCR spacing
+        "introduction", "1 introduction", "1. introduction",
+        "introducti on",  # occasional OCR spacing
     },
     "background-related-work": {
-        "related work", "background", "background and related work", "literature review",
-        "overview of related research", "2 background", "2 related work", "2. related work",
-        "backgrounds & design rationale", "backgrounds & design rationale",
+        "related work", "background", "background and related work",
+        "literature review", "overview of related research", "2 background",
+        "2 related work", "2. related work", "backgrounds & design rationale",
     },
     "methods": {
         "methods", "method", "materials and methods", "methodology", "study design",
@@ -43,12 +46,15 @@ SYNONYMS = {
     },
     "implementation-system": {
         "implementation", "system", "system overview", "design and implementation",
-        "implementation details", "interface construction", "acoustic sweep sensing and interaction recognition",
-        "sensing method", "problem formulation and parameterization", "algorithmic pipeline",
-        "implementation and fabrication", "fabrication and new materials",
+        "implementation details", "interface construction",
+        "acoustic sweep sensing and interaction recognition",
+        "sensing method", "problem formulation and parameterization",
+        "algorithmic pipeline", "implementation and fabrication",
+        "fabrication and new materials",
     },
     "evaluation": {
-        "evaluation", "technical evaluation", "evaluation and results", "results and evaluation",
+        "evaluation", "technical evaluation",
+        "evaluation and results", "results and evaluation",
     },
     "results": {
         "results", "findings", "evaluation results",
@@ -60,7 +66,8 @@ SYNONYMS = {
         "conclusion", "conclusions", "concluding remarks", "future work and conclusion",
     },
     "limitations": {
-        "limitations", "limitation", "threats to validity", "materials and manufacturing", "general limitations",
+        "limitations", "limitation", "threats to validity",
+        "materials and manufacturing", "general limitations",
     },
     "future-work": {
         "future work", "future directions", "next steps",
@@ -72,7 +79,8 @@ SYNONYMS = {
         "ethics", "ethical considerations", "ethics, inclusivity, and data governance",
     },
     "keywords": {
-        "keywords", "author keywords", "acm classification keywords", "a r t i c l e i n f o",
+        "keywords", "author keywords",
+        "acm classification keywords", "a r t i c l e i n f o",
     },
 }
 
@@ -96,8 +104,7 @@ def norm_title(title: str) -> str:
     # remove numbering prefixes like "1 ", "2.3 ", etc.
     t = NUM_PREFIX_RE.sub("", t)
     # collapse internal multiple spaces
-    t = SPACES_ONLY_RE.sub(" ", t).strip()
-    return t
+    return SPACES_ONLY_RE.sub(" ", t).strip()
 
 
 def map_section(title: str) -> str:
@@ -136,13 +143,13 @@ def split_sections(text: str):
 
 def is_paper_file(path: Path) -> bool:
     name = path.name
-    if not name.endswith('.md'):
+    if not name.endswith(".md"):
         return False
-    if name.startswith('image_'):
+    if name.startswith("image_"):
         return False
-    if name.endswith('_artifacts.md'):
+    if name.endswith("_artifacts.md"):
         return False
-    if name in {'HCI_paper_writing_guide.md', 'list.md'}:
+    if name in {"HCI_paper_writing_guide.md", "list.md"}:
         return False
     return True
 
@@ -150,7 +157,7 @@ def is_paper_file(path: Path) -> bool:
 def write_section(out_dir: Path, paper: str, section_key: str, content: str):
     out_path = out_dir / SECTION_DIRS[section_key] / f"{paper} - {section_key}.md"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(content.strip() + "\n", encoding='utf-8')
+    out_path.write_text(content.strip() + "\n", encoding="utf-8")
 
 
 def slugify(text: str) -> str:
@@ -166,21 +173,21 @@ def main():
         (EXAMPLES / out_sub).mkdir(parents=True, exist_ok=True)
 
     for md in md_files:
-        text = md.read_text(encoding='utf-8', errors='ignore')
+        text = md.read_text(encoding="utf-8", errors="ignore")
         sections, lines = split_sections(text)
         paper_name = md.stem
-        counters = {k: 0 for k in SECTION_DIRS.keys()}
+        counters = dict.fromkeys(SECTION_DIRS.keys(), 0)
         last_canonical = None
         # If no headings found, treat whole file as other
         if not sections:
-            write_section(EXAMPLES, paper_name, 'other', text)
+            write_section(EXAMPLES, paper_name, "other", text)
             continue
         for title, start, end in sections:
             mapped = map_section(title)
-            if mapped != 'other':
+            if mapped != "other":
                 last_canonical = mapped
-            sect_key = mapped if mapped != 'other' and mapped in SECTION_DIRS else (
-                last_canonical if last_canonical else 'other'
+            sect_key = mapped if mapped != "other" and mapped in SECTION_DIRS else (
+                last_canonical if last_canonical else "other"
             )
             content = "\n".join(lines[start:end]).strip()
             if not content:
@@ -192,10 +199,10 @@ def main():
             out_dir = EXAMPLES / SECTION_DIRS[sect_key]
             out_file = out_dir / f"{paper_name} - {sect_key} - {idx:02d}-{slug}.md"
             out_dir.mkdir(parents=True, exist_ok=True)
-            out_file.write_text(f"## {title}\n\n{content}\n", encoding='utf-8')
+            out_file.write_text(f"## {title}\n\n{content}\n", encoding="utf-8")
 
     print(f"Processed {len(md_files)} files.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
