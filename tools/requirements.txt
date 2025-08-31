@@ -1,0 +1,15 @@
+# Core dependencies
+requests==2.32.3
+tqdm==4.66.4
+
+# BibTeX processing
+bibtexparser==1.4.1
+
+# Web scraping and automation
+selenium==4.9.1
+
+# Academic data sources
+habanero==1.2.2
+
+# Optional: For enhanced output formatting
+rich==13.7.1
