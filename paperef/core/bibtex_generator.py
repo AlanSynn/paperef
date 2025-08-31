@@ -196,7 +196,7 @@ class BibTeXGenerator:
         return references
 
     def _parse_reference(self, ref_text: str) -> Dict[str, Any]:
-        """참고문헌 텍스트 파싱 - 개선된 버전"""
+        """Parse reference text - improved version"""
         ref_data = {
             "title": "",
             "authors": [],
@@ -242,7 +242,7 @@ class BibTeXGenerator:
         return ref_data
 
     def _parse_authors(self, authors_text: str) -> List[str]:
-        """저자 텍스트 파싱 개선"""
+        """Parse author text - improved version"""
         authors = []
 
         # Handle multiple separators: comma, "and", "&", "et al."
@@ -274,7 +274,7 @@ class BibTeXGenerator:
         return authors
 
     def _normalize_author_name(self, author: str) -> str:
-        """저자 이름 정규화 - BibTeX 키 생성용"""
+        """Normalize author name - for BibTeX key creation"""
         author = author.strip()
 
 
@@ -290,7 +290,7 @@ class BibTeXGenerator:
                 return author
 
     def _extract_title_from_reference(self, text: str) -> str:
-        """참고문헌에서 제목 추출 개선"""
+        """Extract title from reference - improved version"""
         # Extract title from typical reference format
         # Example: "Title." journal name, pages, etc.
 
@@ -309,14 +309,14 @@ class BibTeXGenerator:
 
         # Extract title of reasonable length from entire text
         words = text.split()
-        if len(words) <= 15:  # 짧은 제목
+        if len(words) <= 15:  # Short title
             return text.strip()
         else:
             # Limit to first 15 words
             return ' '.join(words[:15]).strip()
 
     def _extract_doi_from_reference(self, text: str) -> Optional[str]:
-        """참고문헌 텍스트에서 DOI 추출"""
+        """Extract DOI from reference text"""
 
         doi_patterns = [
             r'https?://doi\.org/([^\s]+)',
@@ -340,7 +340,7 @@ class BibTeXGenerator:
         return ref_data
 
     def _create_bibtex_entry(self, metadata) -> BibTeXEntry:
-        """메타데이터로부터 BibTeX 엔트리 생성"""
+        """Create BibTeX entry from metadata"""
         # Generate BibTeX key
         bibtex_key = self.generate_bibtex_key_google_style(
             metadata.authors or ["Unknown"],
@@ -423,7 +423,7 @@ class BibTeXGenerator:
         return bibtex_key
 
     def _create_enhanced_bibtex_entry(self, metadata) -> BibTeXEntry:
-        """메타데이터를 활용한 BibTeX 엔트리 생성 - 보강 버전"""
+        """Create BibTeX entry with metadata - enhanced version"""
 
         authors = metadata.authors or ["Unknown"]
         bibtex_key = self.generate_bibtex_key_google_style(
@@ -477,7 +477,7 @@ class BibTeXGenerator:
         )
 
     def _format_enhanced_bibtex_entry(self, entry: BibTeXEntry) -> str:
-        """보강된 BibTeX 엔트리 포맷팅"""
+        """Format enhanced BibTeX entry"""
         lines = [f"@{entry.entry_type}{{{entry.key},"]
 
         for key, value in entry.fields.items():
@@ -491,7 +491,7 @@ class BibTeXGenerator:
         return "\n".join(lines)
 
     def _search_bibtex(self, title: str, year: Optional[int], doi: Optional[str] = None) -> Optional[str]:
-        """BibTeX 검색 (OpenAlex 우선, Google Scholar fallback)"""
+        """Search for BibTeX (OpenAlex first, Google Scholar fallback)"""
         if not title:
             return None
 
@@ -518,7 +518,7 @@ class BibTeXGenerator:
         return None
 
     def _update_entry_from_bibtex(self, entry: BibTeXEntry, bibtex: str):
-        """BibTeX로부터 엔트리 업데이트"""
+        """Update entry from BibTeX"""
         try:
             import bibtexparser
 
@@ -545,13 +545,13 @@ class BibTeXGenerator:
             print(f"Error parsing BibTeX: {e}")
 
     def _enhance_with_doi(self, entry: BibTeXEntry):
-        """DOI를 통한 메타데이터 보강 (향후 구현)"""
+        """Enhance metadata with DOI (future implementation)"""
 
 
         pass
 
     def _format_bibtex_entry(self, entry: BibTeXEntry) -> str:
-        """BibTeX 엔트리를 문자열로 포맷팅"""
+        """Format BibTeX entry to string"""
         try:
             import bibtexparser
 
@@ -585,10 +585,10 @@ class BibTeXGenerator:
             return "\n".join(lines)
 
     def _save_to_cache(self):
-        """캐시 저장"""
+        """Save cache"""
         save_cache(self.config.cache_file, self.cache)
 
     def close(self):
-        """리소스 정리"""
+        """Clean up resources"""
         if self.bibtex_scraper:
             self.bibtex_scraper.close()

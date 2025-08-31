@@ -1,5 +1,5 @@
 """
-PDF 처리 및 Docling 통합 모듈
+PDF processing and Docling integration module
 """
 
 import os
@@ -14,7 +14,7 @@ from ..utils.file_utils import ensure_directory, get_file_hash, sanitize_filenam
 
 @dataclass
 class PDFMetadata:
-    """PDF 메타데이터"""
+    """PDF metadata"""
     title: Optional[str] = None
     authors: List[str] = None
     year: Optional[int] = None
@@ -30,7 +30,7 @@ class PDFMetadata:
 
 
 class PDFProcessor:
-    """PDF 처리 클래스"""
+    """PDF processing class"""
 
     def __init__(self, config: Config):
         self.config = config
@@ -38,18 +38,18 @@ class PDFProcessor:
         self._init_docling()
 
     def _init_docling(self):
-        """Docling 프로세서 초기화"""
+        """Initialize Docling processor"""
         try:
             from docling.document_converter import DocumentConverter
             from docling.datamodel.pipeline_options import PdfPipelineOptions
             from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 
-            # PDF 파이프라인 옵션 설정
+            # PDF pipeline options
             pipeline_options = PdfPipelineOptions()
-            pipeline_options.do_ocr = True  # OCR 활성화
-            pipeline_options.do_table_structure = True  # 표 구조 인식
+            pipeline_options.do_ocr = True  # OCR enabled
+            pipeline_options.do_table_structure = True  # Table structure recognition
 
-            # 문서 변환기 생성
+            # Create document converter
             self.docling_processor = DocumentConverter(
                 format_options={
                     "output_format": "markdown",
@@ -65,7 +65,7 @@ class PDFProcessor:
             ) from e
 
     def extract_title(self, pdf_path: Path) -> Optional[str]:
-        """PDF에서 제목 추출"""
+        """Extract title from PDF"""
         try:
 
             import fitz
@@ -114,7 +114,7 @@ class PDFProcessor:
         return title.strip() if title.strip() else None
 
     def extract_metadata(self, pdf_path: Path) -> PDFMetadata:
-        """PDF에서 메타데이터 추출 - 개선된 버전"""
+        """Extract metadata from PDF - improved version"""
         metadata = PDFMetadata()
 
         try:
@@ -123,20 +123,20 @@ class PDFProcessor:
             with fitz.open(pdf_path) as doc:
                 pdf_metadata = doc.metadata
 
-                # 기본 메타데이터 추출
+                # Extract basic metadata
                 metadata.title = pdf_metadata.get("title", "").strip() or self.extract_title(pdf_path)
                 metadata.year = self._extract_year_from_metadata(pdf_metadata)
 
-                # DOI 추출 시도
+                # Try to extract DOI
                 metadata.doi = self._extract_doi_from_pdf(doc)
 
-                # 초록 추출 시도
+                # Try to extract abstract
                 metadata.abstract = self._extract_abstract_from_pdf(doc)
 
-                # 저자 정보 추출 시도
+                # Try to extract author information
                 metadata.authors = self._extract_authors_from_pdf(doc)
 
-                # 키워드 추출 시도
+                # Try to extract keywords
                 metadata.keywords = self._extract_keywords_from_pdf(doc)
 
         except Exception:
@@ -145,7 +145,7 @@ class PDFProcessor:
         return metadata
 
     def _extract_year_from_metadata(self, pdf_metadata: Dict[str, Any]) -> Optional[int]:
-        """메타데이터에서 연도 추출"""
+        """Extract year from metadata"""
 
         date_fields = ["creationDate", "modDate", "producer"]
 
@@ -160,10 +160,10 @@ class PDFProcessor:
         return None
 
     def _extract_doi_from_pdf(self, doc) -> Optional[str]:
-        """PDF에서 DOI 추출"""
+        """Extract DOI from PDF"""
         doi_pattern = r'\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b'
 
-        # 첫 몇 페이지에서 DOI 검색
+        # Search for DOI on the first few pages
         for page_num in range(min(5, len(doc))):
             page = doc[page_num]
             text = page.get_text()
@@ -175,7 +175,7 @@ class PDFProcessor:
         return None
 
     def _extract_abstract_from_pdf(self, doc) -> Optional[str]:
-        """PDF에서 초록 추출"""
+        """Extract abstract from PDF"""
 
         if len(doc) > 0:
             page = doc[0]
@@ -198,16 +198,16 @@ class PDFProcessor:
         return None
 
     def _extract_authors_from_pdf(self, doc) -> List[str]:
-        """PDF에서 저자 정보 추출"""
+        """Extract author information from PDF"""
         authors = []
 
         try:
-            # 첫 페이지에서 저자 정보 찾기
+            # Find author information on the first page
             if len(doc) > 0:
                 page = doc[0]
                 text = page.get_text()
 
-                # 일반적인 저자 패턴들
+                # Common author patterns
                 author_patterns = [
                     r'Authors?:\s*([^\n]+)',
                     r'By\s+([^\n]+)',
@@ -219,7 +219,7 @@ class PDFProcessor:
                     match = re.search(pattern, text, re.MULTILINE)
                     if match:
                         author_text = match.group(1).strip()
-                        # 콤마나 "and"로 구분된 저자들 분리
+                        # Separate authors separated by comma or "and"
                         if ',' in author_text:
                             authors = [a.strip() for a in author_text.split(',') if a.strip()]
                         elif ' and ' in author_text:
@@ -227,7 +227,7 @@ class PDFProcessor:
                         else:
                             authors = [author_text]
 
-                        # 너무 많은 저자는 제외 (논문이 아닌 경우)
+                        # Too many authors are excluded (not a paper)
                         if len(authors) <= 10:
                             break
 
@@ -237,7 +237,7 @@ class PDFProcessor:
         return authors
 
     def _extract_keywords_from_pdf(self, doc) -> List[str]:
-        """PDF에서 키워드 추출"""
+        """Extract keywords from PDF"""
         keywords = []
 
         try:
@@ -284,15 +284,15 @@ class PDFProcessor:
         image_mode: str = "placeholder"
     ) -> Tuple[str, List[Path]]:
         """
-        PDF를 Markdown으로 변환
+        Convert PDF to Markdown
 
         Args:
-            pdf_path: 입력 PDF 파일 경로
-            output_dir: 출력 디렉토리
-            image_mode: 이미지 처리 모드 ("placeholder" | "vlm")
+            pdf_path: Input PDF file path
+            output_dir: Output directory
+            image_mode: Image processing mode ("placeholder" | "vlm")
 
         Returns:
-            변환된 Markdown 텍스트와 추출된 이미지 파일들의 경로 리스트
+            Converted Markdown text and list of extracted image files
         """
         if not self.docling_processor:
             raise RuntimeError("Docling processor not initialized")
@@ -327,28 +327,28 @@ class PDFProcessor:
         docling_result,
         output_dir: Path
     ) -> List[Path]:
-        """플레이스홀더 모드로 이미지 처리"""
+        """Process images in placeholder mode"""
         image_paths = []
         artifacts_dir = output_dir / self.config.artifacts_dir_name
         ensure_directory(artifacts_dir)
 
         try:
-            # Docling 결과에서 이미지 추출 및 저장
+            # Extract and save images from Docling result
             for item in docling_result.document.body.content:
                 if hasattr(item, 'image') and item.image:
-                    # 이미지 해시 기반 파일명 생성
+                    # Create image filename based on hash
                     image_hash = get_file_hash_from_bytes(item.image.get_image())
                     image_filename = f"image_{image_hash}.png"
                     image_path = artifacts_dir / image_filename
 
-                    # 이미지 저장
+                    # Save image
                     with open(image_path, "wb") as f:
                         f.write(item.image.get_image())
 
                     image_paths.append(image_path)
 
         except Exception:
-            pass  # 이미지 처리 실패는 무시
+            pass  # Ignore image processing failure
 
         return image_paths
 
@@ -357,7 +357,7 @@ class PDFProcessor:
         docling_result,
         output_dir: Path
     ) -> List[Path]:
-        """VLM 모드로 이미지 처리 (미래 구현)"""
+        """Process images in VLM mode (future implementation)"""
 
 
         return self._process_images_placeholder(docling_result, output_dir)
@@ -367,11 +367,11 @@ class PDFProcessor:
         markdown_text: str,
         docling_result
     ) -> str:
-        """플레이스홀더 모드로 마크다운 개선"""
-        # 이미지 플레이스홀더로 교체
+        """Improve markdown in placeholder mode"""
+        # Replace images with placeholder
         enhanced_text = markdown_text
 
-        # 기본적인 텍스트 개선
+        # Basic text improvement
         enhanced_text = self._clean_markdown_formatting(enhanced_text)
 
         return enhanced_text
@@ -381,21 +381,21 @@ class PDFProcessor:
         markdown_text: str,
         docling_result
     ) -> str:
-        """VLM으로 마크다운 개선 (미래 구현)"""
+        """Improve markdown in VLM mode (future implementation)"""
 
         return self._enhance_markdown_placeholder(markdown_text, docling_result)
 
     def _clean_markdown_formatting(self, text: str) -> str:
-        """마크다운 포맷 정리"""
-        # 연속된 빈 줄 정리
+        """Clean markdown formatting"""
+        # Clean consecutive empty lines
         text = re.sub(r'\n{3,}', '\n\n', text)
 
-        # 불필요한 공백 정리
+        # Clean unnecessary spaces
         lines = text.split('\n')
         cleaned_lines = []
 
         for line in lines:
-            # 줄 끝 공백 제거
+            # Remove trailing spaces
             line = line.rstrip()
             cleaned_lines.append(line)
 
@@ -406,7 +406,7 @@ class PDFProcessor:
         markdown_text: str,
         metadata: PDFMetadata
     ) -> str:
-        """YAML front matter 추가"""
+        """Add YAML front matter"""
         frontmatter_lines = ["---"]
 
         if metadata.title:
@@ -429,6 +429,6 @@ class PDFProcessor:
 
 
 def get_file_hash_from_bytes(data: bytes) -> str:
-    """바이트 데이터의 해시값 계산"""
+    """Calculate hash from byte data"""
     import hashlib
     return hashlib.md5(data).hexdigest()[:8]

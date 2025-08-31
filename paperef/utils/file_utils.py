@@ -1,5 +1,5 @@
 """
-파일 I/O 유틸리티 모듈
+File I/O utility module
 """
 
 import json
@@ -9,12 +9,12 @@ from typing import Dict, Any, Optional
 
 
 def ensure_directory(path: Path) -> None:
-    """디렉토리가 존재하지 않으면 생성"""
+    """Create directory if it doesn't exist"""
     path.mkdir(parents=True, exist_ok=True)
 
 
 def load_cache(cache_file: Path) -> Dict[str, Any]:
-    """캐시 파일에서 데이터 로드"""
+    """Load data from cache file"""
     if not cache_file.exists():
         return {}
 
@@ -26,18 +26,18 @@ def load_cache(cache_file: Path) -> Dict[str, Any]:
 
 
 def save_cache(cache_file: Path, data: Dict[str, Any]) -> None:
-    """데이터를 캐시 파일에 저장"""
+    """Save data to cache file"""
     ensure_directory(cache_file.parent)
 
     try:
         with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except IOError:
-        pass  # 캐시 저장 실패는 무시
+        pass  # Ignore cache save failure
 
 
 def get_file_hash(file_path: Path) -> str:
-    """파일의 해시값 계산"""
+    """Calculate file hash"""
     import hashlib
 
     hash_md5 = hashlib.md5()
@@ -48,23 +48,23 @@ def get_file_hash(file_path: Path) -> str:
 
 
 def sanitize_filename(filename: str) -> str:
-    """파일명에서 안전하지 않은 문자 제거"""
+    """Remove unsafe characters from filename"""
     import re
 
-    # 허용되는 문자: 알파벳, 숫자, 하이픈, 언더스코어, 점
+    # Allowable characters: alphabet, numbers, hyphen, underscore, period
     sanitized = re.sub(r'[^\w\.-]', '_', filename)
 
-    # 연속된 언더스코어를 하나로 줄임
+    # Reduce consecutive underscores to one
     sanitized = re.sub(r'_+', '_', sanitized)
 
-    # 앞뒤 공백 및 언더스코어 제거
+    # Remove leading and trailing spaces and underscores
     sanitized = sanitized.strip('_ ')
 
     return sanitized or "unnamed"
 
 
 def get_unique_filename(directory: Path, base_name: str, extension: str = "") -> str:
-    """디렉토리 내에서 고유한 파일명 생성"""
+    """Create unique filename within directory"""
     if extension and not extension.startswith('.'):
         extension = f".{extension}"
 
@@ -79,7 +79,7 @@ def get_unique_filename(directory: Path, base_name: str, extension: str = "") ->
 
 
 def read_text_file(file_path: Path, encoding: str = "utf-8") -> Optional[str]:
-    """텍스트 파일 읽기"""
+    """Read text file"""
     try:
         with open(file_path, "r", encoding=encoding) as f:
             return f.read()
@@ -88,7 +88,7 @@ def read_text_file(file_path: Path, encoding: str = "utf-8") -> Optional[str]:
 
 
 def write_text_file(file_path: Path, content: str, encoding: str = "utf-8") -> bool:
-    """텍스트 파일 쓰기"""
+    """Write text file"""
     try:
         ensure_directory(file_path.parent)
         with open(file_path, "w", encoding=encoding) as f:
@@ -99,7 +99,7 @@ def write_text_file(file_path: Path, content: str, encoding: str = "utf-8") -> b
 
 
 def copy_file(src: Path, dst: Path) -> bool:
-    """파일 복사"""
+    """Copy file"""
     try:
         ensure_directory(dst.parent)
         import shutil
@@ -110,7 +110,7 @@ def copy_file(src: Path, dst: Path) -> bool:
 
 
 def get_pdf_title(pdf_path: Path) -> Optional[str]:
-    """PDF 파일에서 제목 메타데이터 추출"""
+    """Extract title metadata from PDF file"""
     try:
         import fitz
 

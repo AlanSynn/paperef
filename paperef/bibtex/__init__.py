@@ -1,3 +1,3 @@
 """
-BibTeX 처리 모듈
+BibTeX processing module
 """

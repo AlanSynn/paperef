@@ -1,6 +1,6 @@
 
 """
-Paper2MD 메인 CLI 인터페이스
+PaperRef main CLI interface
 """
 
 import argparse
@@ -21,22 +21,22 @@ console = Console()
 
 
 def parse_args() -> argparse.Namespace:
-    """명령줄 인자 파싱"""
+    """Parse command line arguments"""
     parser = argparse.ArgumentParser(
         description="Paper2MD: PDF to Markdown converter with automatic BibTeX generation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # 기본 변환
+  # Basic conversion
   paperef input.pdf
 
-  # 고급 옵션들
+  # Advanced options
   paperef input.pdf --output-dir ./output --image-mode vlm --verbose
 
-  # BibTeX만 생성
+  # Generate BibTeX only
   paperef input.pdf --bibtex-only
 
-  # 배치 처리
+  # Batch processing
   paperef *.pdf --batch --output-dir ./papers
         """
     )
@@ -126,7 +126,7 @@ Examples:
 
 
 def validate_input_files(input_files: List[str]) -> List[Path]:
-    """입력 파일 검증 및 Path 객체 변환"""
+    """Validate input files and convert to Path objects"""
     valid_files = []
 
     for file_pattern in input_files:
@@ -135,7 +135,7 @@ def validate_input_files(input_files: List[str]) -> List[Path]:
         if path.is_file() and path.suffix.lower() == ".pdf":
             valid_files.append(path)
         elif "*" in str(path) or "?" in str(path):
-            # Glob 패턴 처리
+            # Glob pattern processing
             import glob
             matches = glob.glob(str(path))
             for match in matches:
@@ -158,7 +158,7 @@ def process_single_file(
     processor: PDFProcessor,
     bibtex_gen: BibTeXGenerator
 ) -> bool:
-    """단일 PDF 파일 처리"""
+    """Process a single PDF file"""
     try:
         console.print(f"[blue]Processing: {pdf_path.name}[/blue]")
 
@@ -234,11 +234,11 @@ def process_single_file(
 
 
 def main() -> int:
-    """메인 함수"""
+    """Main function"""
     try:
         args = parse_args()
 
-        # 설정 생성
+        # Create configuration
         config = Config(
             output_dir=args.output_dir,
             image_mode=args.image_mode,
@@ -254,31 +254,31 @@ def main() -> int:
             skip_pdf=args.skip_pdf
         )
 
-        # 출력 디렉토리 생성
+        # Create output directory
         ensure_directory(config.output_dir)
         ensure_directory(config.cache_dir)
 
-        # 입력 파일 검증
+        # Validate input files
         input_files = validate_input_files(args.input_files)
 
         console.print(f"[bold blue]Paper2MD v{__import__('paperef').__version__}[/bold blue]")
         console.print(f"Processing {len(input_files)} PDF file(s)")
         console.print()
 
-        # 프로세서 초기화
+        # Initialize processor
         processor = PDFProcessor(config)
         bibtex_gen = BibTeXGenerator(config)
 
-        # 파일 처리
+        # Process files
         success_count = 0
         total_count = len(input_files)
 
         if len(input_files) == 1:
-            # 단일 파일 처리
+            # Process single file
             if process_single_file(input_files[0], config, processor, bibtex_gen):
                 success_count = 1
         else:
-            # 배치 처리
+            # Batch processing
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -291,7 +291,7 @@ def main() -> int:
                         success_count += 1
                     progress.advance(task)
 
-        # 결과 요약
+        # Summary of results
         console.print()
         console.print(f"[bold green]Completed: {success_count}/{total_count} files processed successfully[/bold green]")
 

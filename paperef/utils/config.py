@@ -1,5 +1,5 @@
 """
-설정 관리 모듈
+Configuration management module
 """
 
 from dataclasses import dataclass
@@ -9,44 +9,44 @@ from typing import Optional
 
 @dataclass
 class Config:
-    """Paper2MD 설정 클래스"""
+    """Paper2MD configuration class"""
 
-    # 기본 설정
+    # Basic settings
     output_dir: str = "./papers"
     cache_dir: str = "./cache"
 
-    # 이미지 처리 설정
+    # Image processing settings
     image_mode: str = "placeholder"  # "placeholder" | "vlm"
 
-    # BibTeX 설정
+    # BibTeX settings
     bibtex_only: bool = False
     bibtex_enhanced: bool = False
     bibtex_clean: bool = False
 
-    # 폴더 관리 설정
+    # Folder management settings
     create_folders: bool = True
     folder_template: str = "{title}"
 
-    # 동작 설정
+    # Operation settings
     verbose: bool = False
     interactive: bool = True
     no_interactive: bool = False
     skip_pdf: bool = False
 
-    # BibTeX 키 생성 설정
+    # BibTeX key generation settings
     bibtex_key_style: str = "google"  # "google" | "standard"
 
-    # Google Scholar 설정
+    # Google Scholar settings
     scholar_wait_min: float = 0.5
     scholar_wait_max: float = 1.0
     scholar_headless: bool = True
 
-    # DOI 보강 설정
+    # DOI enrichment settings
     doi_timeout: int = 20
     doi_rate_limit: float = 0.2
 
     def __post_init__(self):
-        """설정 검증 및 초기화"""
+        """Validate and initialize settings"""
 
         self.output_dir = Path(self.output_dir)
         self.cache_dir = Path(self.cache_dir)
@@ -61,23 +61,23 @@ class Config:
 
     @property
     def cache_file(self) -> Path:
-        """캐시 파일 경로"""
+        """Cache file path"""
         return self.cache_dir / ".bib_cache.json"
 
     @property
     def artifacts_dir_name(self) -> str:
-        """아티팩트 디렉토리명"""
+        """Artifacts directory name"""
         return "artifacts"
 
     def get_folder_name(self, title: str) -> str:
-        """제목으로부터 폴더명 생성"""
+        """Create folder name from title"""
         if not title:
             return "untitled"
 
-        # 특수문자 제거 및 공백을 언더스코어로 변환
+        # Remove special characters and convert spaces to underscores
         import re
         clean_title = re.sub(r'[^\w\s-]', '', title)
         clean_title = re.sub(r'\s+', '_', clean_title.strip())
 
-        # 템플릿 적용
+        # Apply template
         return self.folder_template.format(title=clean_title[:50])  # 길이 제한

@@ -1,3 +1,3 @@
 """
-코어 처리 모듈
+Core processing module
 """

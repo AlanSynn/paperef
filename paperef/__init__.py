@@ -1,5 +1,5 @@
 """
-Paper2MD: 통합 논문 PDF 변환 및 BibTeX 생성 시스템
+PaperRef: Integrated PDF to Markdown converter with automatic BibTeX generation for academic papers
 """
 
 __version__ = "0.1.0"
