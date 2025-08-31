@@ -1,11 +1,11 @@
-# Paper2MD 📄➡️📝
+# PaperRef 📄➡️📝
 
 **Integrated PDF to Markdown converter with automatic BibTeX generation for academic papers**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-Paper2MD is a powerful tool that converts academic PDF papers to well-structured Markdown format while automatically extracting and generating complete BibTeX citations for all references.
+PaperRef is a powerful tool that converts academic PDF papers to well-structured Markdown format while automatically extracting and generating complete BibTeX citations for all references.
 
 ## ✨ Features
 
@@ -31,7 +31,7 @@ Paper2MD is a powerful tool that converts academic PDF papers to well-structured
 ### Global Installation (Recommended)
 ```bash
 # Install globally with uv (fast Python package manager)
-uv tool install --python 3.12 git+https://github.com/alansynn/paper2md.git
+uv tool install --python 3.12 git+https://github.com/alansynn/paperef.git
 
 # Or install locally for development
 uv tool install --python 3.12 .
@@ -40,8 +40,8 @@ uv tool install --python 3.12 .
 ### Virtual Environment Installation
 ```bash
 # Create virtual environment (Python 3.10-3.12 recommended)
-uv venv paper2md_env --python 3.12
-source paper2md_env/bin/activate  # On Windows: paper2md_env\Scripts\activate
+uv venv paperef_env --python 3.12
+source paperef_env/bin/activate  # On Windows: paperef_env\Scripts\activate
 
 # Install the package
 uv pip install -e .
@@ -56,35 +56,35 @@ uv pip install -e .
 ### Basic Conversion
 ```bash
 # Convert single PDF to Markdown with BibTeX
-paper2md research_paper.pdf
+paperef research_paper.pdf
 ```
 
 ### Advanced Options
 ```bash
 # Full-featured conversion with verbose output
-paper2md research_paper.pdf \
+paperef research_paper.pdf \
   --output-dir ./my_papers \
   --image-mode placeholder \
   --bibtex-enhanced \
   --verbose
 
 # Skip PDF conversion if Markdown already exists
-paper2md research_paper.pdf --skip-pdf
+paperef research_paper.pdf --skip-pdf
 
 # BibTeX generation only
-paper2md research_paper.pdf --bibtex-only
+paperef research_paper.pdf --bibtex-only
 
 # Interactive mode for manual BibTeX selection
-paper2md research_paper.pdf --interactive
+paperef research_paper.pdf --interactive
 ```
 
 ### Batch Processing
 ```bash
 # Process all PDFs in current directory
-paper2md *.pdf --batch --output-dir ./processed_papers
+paperef *.pdf --batch --output-dir ./processed_papers
 
 # Process PDFs from specific directory
-paper2md /path/to/pdfs/*.pdf --batch --output-dir ./output
+paperef /path/to/pdfs/*.pdf --batch --output-dir ./output
 ```
 
 ### Output Structure
@@ -114,7 +114,7 @@ papers/
 ## 🏗️ Architecture
 
 ```
-paper2md/
+paperef/
 ├── cli/                    # Command-line interface
 │   └── main.py
 ├── core/                   # Core functionality
@@ -141,8 +141,8 @@ paper2md/
 ### Setup Development Environment
 ```bash
 # Clone repository
-git clone https://github.com/alansynn/paper2md.git
-cd paper2md
+git clone https://github.com/alansynn/paperef.git
+cd paperef
 
 # Install in development mode
 uv pip install -e .
@@ -157,7 +157,7 @@ uv pip install pytest black isort mypy
 uv run pytest
 
 # Run with coverage
-uv run pytest --cov=paper2md
+uv run pytest --cov=paperef
 ```
 
 ## 📚 BibTeX Examples
@@ -194,4 +194,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Paper2MD** - Making academic paper processing automated and efficient! 🚀
+**PaperRef** - Making academic paper processing automated and efficient! 🚀

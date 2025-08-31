@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "paper2md"
+name = "paperef"
 version = "0.1.0"
 description = "PDF to Markdown converter with automatic BibTeX generation"
 authors = [
@@ -31,10 +31,10 @@ vlm = [
 ]
 
 [project.scripts]
-paper2md = "paper2md.cli.main:main"
+paperef = "paperef.cli.main:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["paper2md"]
+packages = ["paperef"]
 
 [tool.uv]
 dev-dependencies = [

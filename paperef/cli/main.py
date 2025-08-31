@@ -28,16 +28,16 @@ def parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
   # 기본 변환
-  paper2md input.pdf
+  paperef input.pdf
 
   # 고급 옵션들
-  paper2md input.pdf --output-dir ./output --image-mode vlm --verbose
+  paperef input.pdf --output-dir ./output --image-mode vlm --verbose
 
   # BibTeX만 생성
-  paper2md input.pdf --bibtex-only
+  paperef input.pdf --bibtex-only
 
   # 배치 처리
-  paper2md *.pdf --batch --output-dir ./papers
+  paperef *.pdf --batch --output-dir ./papers
         """
     )
 
@@ -261,7 +261,7 @@ def main() -> int:
         # 입력 파일 검증
         input_files = validate_input_files(args.input_files)
 
-        console.print(f"[bold blue]Paper2MD v{__import__('paper2md').__version__}[/bold blue]")
+        console.print(f"[bold blue]Paper2MD v{__import__('paperef').__version__}[/bold blue]")
         console.print(f"Processing {len(input_files)} PDF file(s)")
         console.print()
 

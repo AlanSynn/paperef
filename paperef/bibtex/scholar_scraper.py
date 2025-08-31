@@ -26,7 +26,7 @@ class OpenAlexScraper:
         self.base_url = "https://api.openalex.org"
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Paper2MD/0.1.0 (https://github.com/alansynn/paper2md; mailto:alan@alansynn.com)',
+            'User-Agent': 'Paper2MD/0.1.0 (https://github.com/alansynn/paperef; mailto:alan@alansynn.com)',
             'Accept': 'application/json'
         })
 

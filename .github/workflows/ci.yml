@@ -32,7 +32,7 @@ jobs:
 
     - name: Run tests
       run: |
-        uv run pytest --cov=paper2md --cov-report=xml
+        uv run pytest --cov=paperef --cov-report=xml
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -62,13 +62,13 @@ jobs:
         uv pip install black isort mypy flake8
 
     - name: Run Black (code formatting)
-      run: uv run black --check --diff paper2md/
+      run: uv run black --check --diff paperef/
 
     - name: Run isort (import sorting)
-      run: uv run isort --check-only --diff paper2md/
+      run: uv run isort --check-only --diff paperef/
 
     - name: Run flake8 (linting)
-      run: uv run flake8 paper2md/ --max-line-length=88 --extend-ignore=E203,W503
+      run: uv run flake8 paperef/ --max-line-length=88 --extend-ignore=E203,W503
 
     - name: Run mypy (type checking)
-      run: uv run mypy paper2md/ --ignore-missing-imports
+      run: uv run mypy paperef/ --ignore-missing-imports
