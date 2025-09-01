@@ -3,18 +3,20 @@
 PaperRef main CLI interface using Typer
 """
 
+import glob
 import sys
+import traceback
 from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from ..core.bibtex_generator import BibTeXGenerator
-from ..core.pdf_processor import PDFProcessor
-from ..utils.config import Config
-from ..utils.file_utils import ensure_directory
-from ..utils.logging_config import get_logger, setup_logging
+from paperef.core.bibtex_generator import BibTeXGenerator
+from paperef.core.pdf_processor import PDFProcessor
+from paperef.utils.config import Config
+from paperef.utils.file_utils import ensure_directory
+from paperef.utils.logging_config import get_logger, setup_logging
 
 console = Console()
 app = typer.Typer(
@@ -25,32 +27,12 @@ app = typer.Typer(
 )
 
 
-@app.callback()
-def callback():
-    """
-    PDF to Markdown converter with automatic BibTeX generation.
-
-    Examples:
-        # Basic conversion
-        paperef input.pdf
-
-        # Advanced options
-        paperef input.pdf --output-dir ./output --image-mode vlm --verbose
-
-        # Generate BibTeX only
-        paperef input.pdf --bibtex-only
-
-        # Batch processing
-        paperef *.pdf --batch --output-dir ./papers
-    """
-
-
-@app.command()
-def process(
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
     input_files: list[Path] = typer.Argument(
-        ...,
+        None,
         help="Input PDF file(s) or glob pattern",
-        exists=True,
     ),
     output_dir: Path = typer.Option(
         "./papers",
@@ -88,11 +70,7 @@ def process(
         file_okay=False,
         dir_okay=True,
     ),
-    batch: bool = typer.Option(
-        False,
-        "--batch",
-        help="Batch process multiple files",
-    ),
+    # Removed: --batch option (sequential processing is default for multiple inputs)
     create_folders: bool = typer.Option(
         True,
         "--create-folders/--no-create-folders",
@@ -123,6 +101,25 @@ def process(
     """
     Process PDF files to Markdown with BibTeX generation.
     """
+    # If no input files provided, show help
+    if ctx.invoked_subcommand is None and (input_files is None or len(input_files) == 0):
+        typer.echo(ctx.get_help())
+        return
+
+    # Filter out option-like arguments from input files
+    if input_files:
+        filtered_files = []
+        for f in input_files:
+            if isinstance(f, str) and f.startswith("-"):
+                continue  # Skip option-like arguments
+            filtered_files.append(f)
+        input_files = filtered_files if filtered_files else None
+
+    if not input_files:
+        console.print("[red]Error: No input files provided[/red]")
+        console.print("Usage: paperef [OPTIONS] INPUT_FILES...")
+        return
+
     # Create configuration
     config = Config(
         output_dir=str(output_dir),
@@ -142,7 +139,7 @@ def process(
     # Set up logging
     log_file = Path(config.cache_dir) / "paperef.log" if config.verbose else None
     setup_logging(config, log_file)
-    logger = get_logger("cli")
+    get_logger("cli")
 
     # Validate and expand input files
     valid_files = validate_input_files(input_files)
@@ -163,23 +160,18 @@ def process(
     success_count = 0
     total_count = len(valid_files)
 
-    if len(valid_files) == 1:
-        # Process single file
-        if process_single_file(valid_files[0], config, processor, bibtex_gen):
-            success_count = 1
-    else:
-        # Batch processing
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console
-        ) as progress:
-            task = progress.add_task("Processing files...", total=total_count)
+    # Process files sequentially (batch removed)
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console
+    ) as progress:
+        task = progress.add_task("Processing files...", total=total_count)
 
-            for pdf_path in valid_files:
-                if process_single_file(pdf_path, config, processor, bibtex_gen):
-                    success_count += 1
-                progress.advance(task)
+        for pdf_path in valid_files:
+            if process_single_file(pdf_path, config, processor, bibtex_gen):
+                success_count += 1
+            progress.advance(task)
 
     # Summary of results
     console.print()
@@ -201,7 +193,6 @@ def validate_input_files(input_files: list[Path]) -> list[Path]:
             valid_files.append(file_pattern)
         elif "*" in str(file_pattern) or "?" in str(file_pattern):
             # Glob pattern processing
-            import glob
             matches = glob.glob(str(file_pattern))
             for match in matches:
                 match_path = Path(match)
@@ -253,7 +244,7 @@ def process_single_file(
                     markdown_content = f.read()
             else:
 
-                with console.status("[bold green]Converting PDF to Markdown...") as status:
+                with console.status("[bold green]Converting PDF to Markdown..."):
                     markdown_content, image_paths = processor.convert_to_markdown(
                         pdf_path, output_dir, config.image_mode
                     )
@@ -268,7 +259,7 @@ def process_single_file(
                     console.print(f"[green]✓ Images extracted: {len(image_paths)} files[/green]")
 
 
-        with console.status("[bold green]Generating main paper BibTeX...") as status:
+        with console.status("[bold green]Generating main paper BibTeX..."):
             bibtex_content = bibtex_gen.generate_from_pdf(pdf_path, config, output_dir)
 
         if bibtex_content:
@@ -276,7 +267,7 @@ def process_single_file(
 
 
             if not config.bibtex_only and markdown_content:
-                with console.status("[bold green]Generating references BibTeX file...") as status:
+                with console.status("[bold green]Generating references BibTeX file..."):
                     references_file = bibtex_gen.generate_from_markdown_references(
                         markdown_content, output_dir, config
                     )
@@ -293,7 +284,6 @@ def process_single_file(
     except Exception as e:
         console.print(f"[red]Error processing {pdf_path.name}: {e}[/red]")
         if config.verbose:
-            import traceback
             console.print(traceback.format_exc())
         return False
 

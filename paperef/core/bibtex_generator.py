@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..bibtex.scholar_scraper import BibTeXScraper
-from ..utils.config import Config
-from ..utils.file_utils import load_cache, save_cache
+from paperef.bibtex.scholar_scraper import BibTeXScraper
+from paperef.utils.config import Config
+from paperef.utils.file_utils import load_cache, save_cache
 
 
 @dataclass
@@ -191,9 +191,8 @@ class BibTeXGenerator:
             references.append("\n".join(current_ref))
 
         # Filter empty references
-        references = [ref for ref in references if ref.strip() and len(ref.strip()) > 50]
+        return [ref for ref in references if ref.strip() and len(ref.strip()) > 50]
 
-        return references
 
     def _parse_reference(self, ref_text: str) -> dict[str, Any]:
         """Parse reference text - improved version"""
@@ -253,10 +252,7 @@ class BibTeXGenerator:
             authors_text = authors_text.lower().split("et al.")[0].strip()
 
         # Separate by "and"
-        if " and " in authors_text:
-            author_parts = [part.strip() for part in authors_text.split(" and ") if part.strip()]
-        else:
-            author_parts = [authors_text]
+        author_parts = [part.strip() for part in authors_text.split(" and ") if part.strip()] if " and " in authors_text else [authors_text]
 
         # Process authors separated by commas in each part
         for part in author_parts:
@@ -301,8 +297,7 @@ class BibTeXGenerator:
         if sentences and len(sentences[0]) > 10:  # If not too short
             title = sentences[0].strip()
             # Remove journal name patterns (e.g., "Journal name,")
-            title = re.sub(r",\s+[A-Z][a-zA-Z\s]+,\s*$", "", title)
-            return title
+            return re.sub(r",\s+[A-Z][a-zA-Z\s]+,\s*$", "", title)
 
         # Extract title of reasonable length from entire text
         words = text.split()
@@ -332,8 +327,6 @@ class BibTeXGenerator:
                 return doi.strip()
 
         return None
-
-        return ref_data
 
     def _create_bibtex_entry(self, metadata) -> BibTeXEntry:
         """Create BibTeX entry from metadata"""

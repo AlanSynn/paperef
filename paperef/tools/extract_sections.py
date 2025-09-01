@@ -149,9 +149,7 @@ def is_paper_file(path: Path) -> bool:
         return False
     if name.endswith("_artifacts.md"):
         return False
-    if name in {"HCI_paper_writing_guide.md", "list.md"}:
-        return False
-    return True
+    return name not in {"HCI_paper_writing_guide.md", "list.md"}
 
 
 def write_section(out_dir: Path, paper: str, section_key: str, content: str):

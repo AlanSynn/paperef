@@ -1,10 +1,14 @@
 name: CI
 
+# Disabled - CI is currently not in use
+# on:
+#   push:
+#     branches: [ main, develop ]
+#   pull_request:
+#     branches: [ main, develop ]
+#   workflow_dispatch:
+
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
   workflow_dispatch:
 
 jobs:

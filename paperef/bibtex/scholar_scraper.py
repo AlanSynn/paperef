@@ -307,10 +307,7 @@ class OpenAlexScraper:
     def _generate_bibtex_key(self, authors: list[str], year: int | None, title: str) -> str:
         """Generate BibTeX key (Google Scholar style)"""
 
-        if authors:
-            first_author = authors[0].split()[-1].lower()
-        else:
-            first_author = "unknown"
+        first_author = authors[0].split()[-1].lower() if authors else "unknown"
 
 
         clean_title = re.sub(r"[():-]", " ", title).strip()
@@ -352,7 +349,10 @@ class GoogleScholarScraper:
         chrome_options.add_experimental_option("useAutomationExtension", False)
 
 
-        chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        chrome_options.add_argument(
+            "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
 
         driver = webdriver.Chrome(options=chrome_options)
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")

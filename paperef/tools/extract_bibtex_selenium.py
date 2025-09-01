@@ -62,7 +62,10 @@ class GoogleScholarScraper:
         chrome_options.add_argument("--disable-extensions")
 
         # User agent to look more like a real browser
-        chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        chrome_options.add_argument(
+            "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
 
         driver = webdriver.Chrome(options=chrome_options)
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
@@ -77,11 +80,11 @@ class GoogleScholarScraper:
     def search_paper(self, title: str, year: int | None = None) -> str | None:
         """
         Search for a paper on Google Scholar and return BibTeX.
-        
+
         Args:
             title: Paper title
             year: Optional publication year
-            
+
         Returns:
             BibTeX string if found, None otherwise
         """
@@ -114,7 +117,7 @@ class GoogleScholarScraper:
             if "captcha" in self.driver.page_source.lower():
                 print("CAPTCHA detected - manual intervention may be needed", file=sys.stderr)
                 # Check if running in headless mode by looking at chrome options
-                chrome_options = self.driver.capabilities.get("chrome", {}).get("chromedriverVersion", "")
+                self.driver.capabilities.get("chrome", {}).get("chromedriverVersion", "")
                 if "--headless" not in str(self.driver.capabilities):
                     print("Browser is visible - please solve CAPTCHA manually", file=sys.stderr)
                     input("Please solve the CAPTCHA and press Enter to continue...")

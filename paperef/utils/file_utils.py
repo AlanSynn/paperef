@@ -2,7 +2,10 @@
 File I/O utility module
 """
 
+import hashlib
 import json
+import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -37,8 +40,6 @@ def save_cache(cache_file: Path, data: dict[str, Any]) -> None:
 
 def get_file_hash(file_path: Path) -> str:
     """Calculate file hash"""
-    import hashlib
-
     hash_sha256 = hashlib.sha256()
     with file_path.open("rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -48,8 +49,6 @@ def get_file_hash(file_path: Path) -> str:
 
 def sanitize_filename(filename: str) -> str:
     """Remove unsafe characters from filename"""
-    import re
-
     # Allowable characters: alphabet, numbers, hyphen, underscore, period
     sanitized = re.sub(r"[^\w\.-]", "_", filename)
 
@@ -101,7 +100,6 @@ def copy_file(src: Path, dst: Path) -> bool:
     """Copy file"""
     try:
         ensure_directory(dst.parent)
-        import shutil
         shutil.copy2(src, dst)
         return True
     except OSError:
@@ -111,8 +109,6 @@ def copy_file(src: Path, dst: Path) -> bool:
 def get_pdf_title(pdf_path: Path) -> str | None:
     """Extract title metadata from PDF file"""
     try:
-        import fitz
-
         with fitz.open(pdf_path) as doc:
             metadata = doc.metadata
             title = metadata.get("title", "").strip()

@@ -2,6 +2,7 @@
 Configuration management module
 """
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -76,7 +77,6 @@ class Config:
             return "untitled"
 
         # Remove special characters and convert spaces to underscores
-        import re
         clean_title = re.sub(r"[^\w\s-]", "", title)
         clean_title = re.sub(r"\s+", "_", clean_title.strip())
 

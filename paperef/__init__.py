@@ -23,30 +23,27 @@ from .utils.file_utils import (
 from .utils.logging_config import get_logger, setup_logging
 
 __all__ = [
+    "BibTeXEntry",
+    "BibTeXGenerator",
+    "Config",
+    "PDFMetadata",
     # Core classes
     "PDFProcessor",
-    "PDFMetadata",
-    "BibTeXGenerator",
-    "BibTeXEntry",
-    "Config",
-
-    # Utility functions
-    "ensure_directory",
-    "load_cache",
-    "save_cache",
-    "get_file_hash",
-    "sanitize_filename",
-    "read_text_file",
-    "write_text_file",
-    "copy_file",
-    "get_pdf_title",
-
-    # Logging
-    "setup_logging",
-    "get_logger",
-
-    # Metadata
-    "__version__",
     "__author__",
     "__email__",
+    # Metadata
+    "__version__",
+    "copy_file",
+    # Utility functions
+    "ensure_directory",
+    "get_file_hash",
+    "get_logger",
+    "get_pdf_title",
+    "load_cache",
+    "read_text_file",
+    "sanitize_filename",
+    "save_cache",
+    # Logging
+    "setup_logging",
+    "write_text_file",
 ]

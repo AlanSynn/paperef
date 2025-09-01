@@ -230,7 +230,10 @@ def display_candidates(candidates: list[dict[str, Any]], title: str, authors: li
     for i, cand in enumerate(candidates):
         doi = cand.get("DOI", "N/A")
         cr_title = (cand.get("title") or [""])[0][:50] + "..." if len((cand.get("title") or [""])[0]) > 50 else (cand.get("title") or [""])[0]
-        cr_auth = ", ".join([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)])[:30] + "..." if len([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)]) > 30 else ", ".join([a.get("family", "") for a in (cand.get("author") or []) if isinstance(a, dict)])
+        authors_list = [a.get("family", "") for a in (cand.get("author") or [])
+                        if isinstance(a, dict)]
+        cr_auth = ", ".join(authors_list)[:30] + "..." \
+                  if len(authors_list) > 30 else ", ".join(authors_list)
         cr_year = str(year_from_crossref(cand)) if year_from_crossref(cand) else "N/A"
         cr_pub = cand.get("publisher", "N/A")
         table.add_row(str(i+1), doi, cr_title, cr_auth, cr_year, cr_pub)
@@ -287,10 +290,7 @@ def author_lastnames(authors_field: str) -> list[str]:
     for p in parts:
         # handle {Sitthi-amorn}, Pitchaya
         p = p.strip("{} ")
-        if "," in p:
-            last = p.split(",", 1)[0].strip("{} ")
-        else:
-            last = p.split()[-1].strip("{} ")
+        last = p.split(",", 1)[0].strip("{} ") if "," in p else p.split()[-1].strip("{} ")
 
         # Unicode normalization for better matching - handle common issues
         # Convert common Unicode characters to ASCII equivalents
@@ -360,7 +360,13 @@ def safe_get(d: dict[str, Any], *keys, default=None):
             return default
     return cur
 
-def best_candidate_by_score(cands: list[dict[str, Any]], title: str, authors: list[str], year: int | None, publisher: str | None = None) -> tuple[dict[str, Any] | None, float]:
+def best_candidate_by_score(
+    cands: list[dict[str, Any]],
+    title: str,
+    authors: list[str],
+    year: int | None,
+    publisher: str | None = None
+) -> tuple[dict[str, Any] | None, float]:
     best = None
     best_score = 0.0
     for it in cands:
@@ -413,13 +419,28 @@ def best_candidate_by_score(cands: list[dict[str, Any]], title: str, authors: li
         if publisher and cr_publisher:
             pub_lower = publisher.lower().strip()
             # Exact match
-            if pub_lower == cr_publisher or pub_lower in cr_publisher or cr_publisher in pub_lower or (("acm" in pub_lower or "association for computing machinery" in pub_lower) and
-                  ("acm" in cr_publisher or "association for computing machinery" in cr_publisher)) or (("ieee" in pub_lower or "institute of electrical and electronics engineers" in pub_lower) and
-                  ("ieee" in cr_publisher or "institute of electrical and electronics engineers" in cr_publisher)) or (("springer" in pub_lower or "springer nature" in pub_lower) and
-                  ("springer" in cr_publisher or "springer nature" in cr_publisher)) or (("elsevier" in pub_lower) and ("elsevier" in cr_publisher)) or (("wiley" in pub_lower) and ("wiley" in cr_publisher)) or (("taylor" in pub_lower and "francis" in pub_lower) and
-                  ("taylor" in cr_publisher and "francis" in cr_publisher)) or (("oxford" in pub_lower and "press" in pub_lower) and
-                  ("oxford" in cr_publisher and "press" in cr_publisher)) or (("cambridge" in pub_lower and "press" in pub_lower) and
-                  ("cambridge" in cr_publisher and "press" in cr_publisher)):
+            # Check publisher match
+            acm_match = (("acm" in pub_lower or "association for computing machinery" in pub_lower) and
+                        ("acm" in cr_publisher or "association for computing machinery" in cr_publisher))
+            ieee_match = (("ieee" in pub_lower or "institute of electrical and electronics engineers" in pub_lower) and
+                         ("ieee" in cr_publisher or "institute of electrical and electronics engineers" in cr_publisher))
+            springer_match = (("springer" in pub_lower or "springer nature" in pub_lower) and
+                             ("springer" in cr_publisher or "springer nature" in cr_publisher))
+
+            elsevier_match = (("elsevier" in pub_lower) and ("elsevier" in cr_publisher))
+            wiley_match = (("wiley" in pub_lower) and ("wiley" in cr_publisher))
+            taylor_match = (("taylor" in pub_lower and "francis" in pub_lower) and
+                           ("taylor" in cr_publisher and "francis" in cr_publisher))
+            oxford_match = (("oxford" in pub_lower and "press" in pub_lower) and
+                           ("oxford" in cr_publisher and "press" in cr_publisher))
+            cambridge_match = (("cambridge" in pub_lower and "press" in pub_lower) and
+                              ("cambridge" in cr_publisher and "press" in cr_publisher))
+
+            if (pub_lower == cr_publisher or pub_lower in cr_publisher or cr_publisher in pub_lower or
+                acm_match or ieee_match or springer_match or
+                ("springer" in cr_publisher or "springer nature" in cr_publisher) or
+                elsevier_match or wiley_match or taylor_match or
+                oxford_match or cambridge_match):
                 pub_score = 1.0
 
         score = 0.5*sim + 0.2*author_score + 0.15*year_score + 0.15*pub_score
@@ -572,10 +593,7 @@ def normalize_publisher_address(entry: dict[str, Any]) -> None:
     elif "institute of electrical and electronics engineers" in pub_lower or pub_lower == "ieee":
         pub_norm = "IEEE"
     elif "springer" in pub_lower:
-        if "nature" in pub_lower:
-            pub_norm = "Springer Nature"
-        else:
-            pub_norm = "Springer"
+        pub_norm = "Springer Nature" if "nature" in pub_lower else "Springer"
     elif "elsevier" in pub_lower:
         pub_norm = "Elsevier"
     elif "wiley" in pub_lower:
@@ -659,14 +677,22 @@ def enrich_entry(entry: dict[str, Any], best: dict[str, Any], acm_pages_to_artic
     normalize_publisher_address(e)
 
     # If @inproceedings has both volume and number, drop number
-    if e.get("ENTRYTYPE","").lower() == "inproceedings" and e.get("volume") and e.get("number"):
+    if (e.get("ENTRYTYPE", "").lower() == "inproceedings" and
+        e.get("volume") and e.get("number")):
         e.pop("number", None)
 
     return e
 
 # --- Main processing ---
 
-def process_bibtex(input_path: str, output_path: str, prefer_openalex: bool = True, acm_pages_to_article: bool = False, min_score: float = 0.65, interactive: bool = True):
+def process_bibtex(
+    input_path: str,
+    output_path: str,
+    prefer_openalex: bool = True,
+    acm_pages_to_article: bool = False,
+    min_score: float = 0.65,
+    interactive: bool = True
+):
     with open(input_path, encoding="utf-8") as f:
         parser = BibTexParser(common_strings=True)
         db = bibtexparser.load(f, parser=parser)
@@ -800,14 +826,22 @@ def main():
     ap.add_argument("-o", "--output", required=True, help="Output .bib path")
     ap.add_argument("--prefer-openalex", action="store_true", help="Query OpenAlex first, then Crossref")
     ap.add_argument("--acm-pages-to-article", action="store_true", help="Convert '138:1--138:12' to articleno/numpages")
-    ap.add_argument("--min-score", type=float, default=0.72, help="Minimum match score to accept (0-1)")
+    ap.add_argument("--min-score", type=float, default=0.72,
+                    help="Minimum match score to accept (0-1)")
     ap.add_argument("--non-interactive", action="store_true", help="Run without interactive prompts")
     args = ap.parse_args()
 
     if CONTACT_EMAIL == "youremail@example.com":
         print("WARNING: Please edit CONTACT_EMAIL in the script to your email for polite API usage.", file=sys.stderr)
 
-    process_bibtex(args.input, args.output, prefer_openalex=args.prefer_openalex, acm_pages_to_article=args.acm_pages_to_article, min_score=args.min_score, interactive=not args.non_interactive)
+    process_bibtex(
+        args.input,
+        args.output,
+        prefer_openalex=args.prefer_openalex,
+        acm_pages_to_article=args.acm_pages_to_article,
+        min_score=args.min_score,
+        interactive=not args.non_interactive
+    )
 
 if __name__ == "__main__":
     main()
